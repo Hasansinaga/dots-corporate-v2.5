@@ -1,4 +1,3 @@
-import { useEffect } from "react"
 import { Image, ImageStyle } from "react-native"
 
 export function Logo({ width = 160, height = 100 }: { width?: number; height?: number }) {
