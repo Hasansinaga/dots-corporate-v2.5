@@ -3,7 +3,6 @@ import Geolocation from 'react-native-geolocation-service'
 import { PermissionsAndroid, Platform, Alert, Linking } from 'react-native'
 import API from './APIManager'
 
-// ambil tipe parameter langsung dari API (pasti cocok dg versi RN yg kamu pakai)
 type PermParam = Parameters<typeof PermissionsAndroid.check>[0]
 type RequestResult = Awaited<ReturnType<typeof PermissionsAndroid.request>>
 
@@ -11,7 +10,6 @@ export async function ensureLocationReady(): Promise<boolean> {
   // iOS: izin via Info.plist, skip di sini
   if (Platform.OS !== 'android') return true
 
-  // pakai nilai literal + fallback dari PERMISSIONS (kalau ada)
   const FINE_LOCATION =
     (PermissionsAndroid.PERMISSIONS?.ACCESS_FINE_LOCATION ??
       'android.permission.ACCESS_FINE_LOCATION') as PermParam
@@ -31,7 +29,6 @@ export async function ensureLocationReady(): Promise<boolean> {
     }
   }
 
-  // cek GPS aktif (opsional)
   const gpsOk = await new Promise<boolean>((resolve) => {
     Geolocation.getCurrentPosition(
       () => resolve(true),
