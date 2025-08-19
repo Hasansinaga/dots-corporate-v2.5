@@ -1,4 +1,4 @@
-import { ReactNode, useEffect } from "react"
+import { ReactNode } from "react"
 import { View, Text, TextInput, TextInputProps } from "react-native"
 
 interface Props extends TextInputProps {
