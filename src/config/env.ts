@@ -1,9 +1,9 @@
-// src/config/env.ts
 import {
   API_URL,
   ONESIGNAL_APP_ID,
   EXPO_PUBLIC_SUPABASE_URL,
   EXPO_PUBLIC_SUPABASE_ANON_KEY,
+  VERSION_APP,
 } from '@env'
 
 export const ENV = {
@@ -11,4 +11,5 @@ export const ENV = {
   ONESIGNAL_APP_ID: ONESIGNAL_APP_ID || '',
   SUPABASE_URL: EXPO_PUBLIC_SUPABASE_URL || '',
   SUPABASE_ANON_KEY: EXPO_PUBLIC_SUPABASE_ANON_KEY || '',
+  VERSION_APP: VERSION_APP || '',
 } as const
