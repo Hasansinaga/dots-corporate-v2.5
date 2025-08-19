@@ -1,54 +1,97 @@
-import { OneSignal } from 'react-native-onesignal'
+import OneSignal from "react-native-onesignal"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import supabase from "./supabaseClient"
-import { ENV } from "@/config/env"
+import { ENV } from "../../../config/env"  
+
+const OSN: any = OneSignal
+let initialized = false
 
 export function initOneSignalOnce() {
-  if (ENV.ONESIGNAL_APP_ID) {
-    OneSignal.initialize(ENV.ONESIGNAL_APP_ID)
-  }
-}
-
-export async function ensureNotificationPermission(): Promise<boolean> {
+  if (initialized || !ENV?.ONESIGNAL_APP_ID) return
   try {
-    const has = await OneSignal.Notifications.hasPermission()
-    if (has) return true
-    const granted = await OneSignal.Notifications.requestPermission(false)
-    return !!granted
-  } catch {
-    return false
+    OSN?.initialize?.(ENV.ONESIGNAL_APP_ID) 
+    OSN?.setAppId?.(ENV.ONESIGNAL_APP_ID)   
+    initialized = true
+  } catch (e) {
+    console.warn("[OneSignal] init failed:", e)
   }
 }
 
-export async function syncOneSignalToken(kodeKantorInt: number, username: string) {
-  const enabled = await ensureNotificationPermission()
-  if (!enabled) return
+export async function requestNotifPermIfNeeded(): Promise<boolean> {
+  try {
+    if (OSN?.Notifications?.getPermissionAsync) {
+      const perm = await OSN.Notifications.getPermissionAsync()
+      if (perm?.status !== "granted") await OSN.Notifications.requestPermission(true)
+      return true
+    }
+    if (typeof OSN?.hasPermission === "function") {
+      const has = await OSN.hasPermission()
+      if (has) return true
+      const granted =
+        (await OSN.requestPermission?.(true)) ??
+        (await OSN.promptForPushNotificationsWithUserResponse?.())
+      return !!granted
+    }
+    return true
+  } catch (e) {
+    console.warn("[OneSignal] perm error:", e)
+    return true
+  }
+}
 
-  const externalId = `${kodeKantorInt}${username}`
-  await OneSignal.login(externalId)
+export async function identifyOneSignal(externalId: string) {
+  try {
+    if (!externalId) return
+    if (typeof OSN?.login === "function") await OSN.login(externalId)              
+    else if (typeof OSN?.setExternalUserId === "function") await OSN.setExternalUserId(externalId) 
+  } catch (e) {
+    console.warn("[OneSignal] identify error:", e)
+  }
+}
 
-  const userId = await AsyncStorage.getItem("userId")
-  const tenantIdString = await AsyncStorage.getItem("kodeKantor")
-  const tenantId = tenantIdString ? parseInt(tenantIdString, 10) : NaN
-  if (!userId || Number.isNaN(tenantId)) return
-
-  const { data: existing } = await supabase
-    .from("users")
-    .select("user_id")
-    .eq("user_id", userId)
-    .eq("tenant_id", tenantId)
-    .maybeSingle()
-
-  if (!existing) {
-    await supabase.from("users").insert({ user_id: userId, tenant_id: tenantId, push_token: externalId })
-  } else {
-    await supabase.from("users").update({ push_token: externalId }).eq("user_id", userId).eq("tenant_id", tenantId)
+export function setupPushAfterLogin(kodeKantorInt: number, username: string) {
+  try {
+    initOneSignalOnce()
+    const externalId = `${kodeKantorInt}${username}`
+    requestNotifPermIfNeeded()
+      .then(() => identifyOneSignal(externalId))
+      .catch((e) => console.warn("[OneSignal] setup after login error:", e))
+  } catch (e) {
+    console.warn("[OneSignal] setupPushAfterLogin error:", e)
   }
 }
 
 export async function ensureTenantRow(id_tenant: number, tenant_name: string) {
-  const { data } = await supabase.from("tenant").select("id_tenant").eq("id_tenant", id_tenant)
-  if (!data || data.length === 0) {
-    await supabase.from("tenant").insert([{ id_tenant, tenant_name }])
+  try {
+    const { data, error } = await supabase
+      .from("tenant")
+      .select("id_tenant")
+      .eq("id_tenant", id_tenant)
+
+    if (error) {
+      console.warn("[tenant] select error:", error)
+      return
+    }
+    if (!data || data.length === 0) {
+      const { error: insErr } = await supabase
+        .from("tenant")
+        .insert([{ id_tenant, tenant_name }])
+      if (insErr) console.warn("[tenant] insert error:", insErr)
+    }
+  } catch (e) {
+    console.warn("[tenant] ensureTenantRow failed:", e)
   }
+}
+
+export function syncOneSignalToken(kodeKantorInt: number, username: string) {
+  setupPushAfterLogin(kodeKantorInt, username)
+}
+
+export default {
+  initOneSignalOnce,
+  requestNotifPermIfNeeded,
+  identifyOneSignal,
+  setupPushAfterLogin,
+  syncOneSignalToken,
+  ensureTenantRow,
 }
