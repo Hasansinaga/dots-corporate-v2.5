@@ -1,5 +1,4 @@
 import 'react-native-gesture-handler'
-import { useEffect } from "react"
 import { TouchableOpacity, Text, ViewStyle } from "react-native"
 import { colors } from "../../shared/constants/colors"
 
