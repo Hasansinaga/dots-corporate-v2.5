@@ -1,7 +1,6 @@
-// src/shared/services/APIManager.ts
 import axios, { AxiosHeaders, InternalAxiosRequestConfig } from "axios"
 import AsyncStorage from "@react-native-async-storage/async-storage"
-import { ENV } from "@/config/env"
+import { ENV } from "../../../config/env"
 
 const API = axios.create({ baseURL: ENV.API_URL, timeout: 10000 })
 
@@ -9,7 +8,6 @@ API.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   const token = await AsyncStorage.getItem("authToken")
   const kodeKantor = await AsyncStorage.getItem("kodeKantor")
 
-  // pastikan headers bertipe AxiosHeaders agar aman di TypeScript
   const headers = (config.headers ?? new AxiosHeaders()) as AxiosHeaders
 
   headers.set("Accept", "application/json")
