@@ -1,4 +1,3 @@
-// src/services/api/index.ts
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '@env';
 
@@ -188,7 +187,6 @@ async function getFeatureFlag(key: string) {
   }
 }
 
-// ==== EXPORT ====
 export const api = {
   getAllCustomers,
   getAllCustomersSearch,

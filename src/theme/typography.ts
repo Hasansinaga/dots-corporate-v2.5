@@ -4,4 +4,4 @@ export const typography = {
     medium: "System",
     bold: "System",
   },
-}
+};

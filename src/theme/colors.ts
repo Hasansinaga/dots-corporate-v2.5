@@ -1,6 +1,6 @@
 export const colors = {
   primaryColor: "#2F80ED",
-  primary: "#2F80ED",            
+  primary: "#2F80ED",
   tint: "#2F80ED",
 
   background: "#FFFFFF",
@@ -18,4 +18,4 @@ export const colors = {
   warning: "#F59E0B",
 
   transparent: "transparent",
-}
+};
