@@ -1,15 +1,14 @@
-// src/navigators/HomeTabs.tsx
 import React from 'react';
 import { View, StyleSheet, TextStyle, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Home, List, QrCode, Bell, Settings } from 'lucide-react-native';
 
-import HomeScreen from '../screens/HomeScreen';                     // ⬅️ pakai ini
-import ActivityScreen from '../screens/ActivityScreen';     // sesuaikan path
-import QRScannerScreen from '../screens/QRScannerScreen';           // sesuaikan path
-import DemoDebugScreen from '../screens/DemoDebugScreen';           // sesuaikan path
-import NotificationScreen from '../screens/NotificationScreen';  // kalau default export
+import HomeScreen from '../features/home/screens/HomeScreen';
+import ActivityScreen from '../features/home/screens/ActivityScreen';
+import QRScannerScreen from '../features/home/screens/QRScannerScreen';
+import DemoDebugScreen from '../features/home/screens/DemoDebugScreen';
+import NotificationScreen from '../features/home/screens/NotificationScreen';
 
 import { colors, spacing, typography } from '../theme';
 
@@ -49,7 +48,7 @@ export default function HomeTabs() {
       >
         <Tab.Screen
           name="DemoShowroom"
-          component={HomeScreen} // ⬅️ ganti ke HomeScreen
+          component={HomeScreen}
           options={{
             tabBarLabel: 'Beranda',
             tabBarIcon: ({ focused, color }) => (
