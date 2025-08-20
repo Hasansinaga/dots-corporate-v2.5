@@ -1,10 +1,10 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import HomeScreen from '../screens/HomeScreen';
-import CustomerListScreen from '../screens/customers/CustomerListScreen';
+import HomeScreen from '../features/home/screens/HomeScreen';
+import CustomerListScreen from '../features/customers/screens/CustomerListScreen';
 
 export type RootStackParamList = {
   DemoShowroom: undefined;
-  DaftarNasabah: undefined;  
+  DaftarNasabah: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
