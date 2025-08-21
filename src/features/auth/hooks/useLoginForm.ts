@@ -40,38 +40,33 @@ export function useLoginForm() {
         return { ok: false, message: "Kode kantor tidak valid" };
       }
 
-      // 3. Panggil service login
-      await loginService({
+      // 3. Panggil service login - TANPA MENUNGGU LOCATION TRACKING
+      const loginResult = await loginService({
         username,
         password,
         kodeKantor: kodeKantorInt
       });
 
-      // 4. Jika berhasil, reset form dan redirect
+      // 4. Jika berhasil, reset form
       setKodeKantor('');
       setUsername('');
       setPassword('');
       setErrors({});
 
-      // Reset navigation setelah delay singkat untuk UX yang lebih baik
-      setTimeout(() => {
-        navigation.reset({ 
-          index: 0, 
-          routes: [{ name: 'HomeTabs' as never }] 
-        });
-      }, 100);
+      // 5. Navigate IMMEDIATELY setelah login berhasil
+      // Gunakan replace agar tidak bisa back ke login screen
+      navigation.reset({ 
+        index: 0, 
+        routes: [{ name: 'HomeTabs' as never }] 
+      });
 
       return { 
         ok: true, 
-        user: { 
-          id: 'user_id', // Akan diisi dari decoded token
-          name: username, 
-          email: '' 
-        } 
+        user: loginResult.user
       };
 
     } catch (error: any) {
-      console.error('Login error:', error);
+      console.error('[login] submit error:', error);
 
       // Handle different types of errors with user-friendly messages
       let errorMessage = 'Login gagal. Mohon periksa kembali data yang Anda masukkan';
@@ -84,16 +79,19 @@ export function useLoginForm() {
       } else if (status === 404) {
         errorMessage = 'Kode kantor tidak ditemukan';
       } else if (status === 500) {
-        // For 500 errors, use a generic message
-        errorMessage = 'Login gagal. Mohon periksa kembali data yang Anda masukkan';
+        const serverMessage = error?.response?.data?.message || error?.response?.data?.error;
+        if (serverMessage && !String(serverMessage).toLowerCase().includes('internal')) {
+          errorMessage = serverMessage;
+        } else {
+          errorMessage = 'Login gagal. Mohon periksa kembali data yang Anda masukkan';
+        }
       } else if (status >= 500) {
         errorMessage = 'Server sedang bermasalah, coba lagi nanti';
       } else if (error?.code === 'NETWORK_ERROR' || error?.message?.includes('Network')) {
         errorMessage = 'Tidak dapat terhubung ke server';
       } else if (error?.code === 'TIMEOUT' || error?.message?.includes('timeout')) {
         errorMessage = 'Koneksi timeout, coba lagi';
-      } else if (error?.message && !error?.message?.includes('Request failed')) {
-        // Use the error message if it's meaningful
+      } else if (error?.message && typeof error.message === 'string') {
         errorMessage = error.message;
       }
 

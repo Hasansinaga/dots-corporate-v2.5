@@ -25,7 +25,10 @@ export async function login({ username, password, kodeKantor }: LoginPayload) {
     const { data } = await API.post<LoginResponse>(
       "/authentication/login",
       { username, password },
-      { headers: { "X-Tenant-Id": String(kodeKantor), Authorization: undefined as any } },
+      { 
+        headers: { "X-Tenant-Id": String(kodeKantor), Authorization: undefined as any },
+        timeout: 15000 // Set timeout untuk request login
+      },
     )
 
     if (!data?.access_token) throw new Error("Token tidak diterima dari server")
@@ -59,15 +62,11 @@ export async function login({ username, password, kodeKantor }: LoginPayload) {
 
     // prioritas tertinggi: in-memory tenant
     setActiveTenant(String(kodeKantor))
-    // setup pasca login (non-fatal kalau gagal)
-    try {
-      if (tenantName) await ensureTenantRow(kodeKantor, tenantName)
-      await syncOneSignalToken(kodeKantor, uname)
 
-      await handleLoginTracking(kodeKantor)
-    } catch (e) {
-      console.warn("[auth] post-login setup warning:", e)
-    }
+    // JALANKAN POST-LOGIN SETUP DI BACKGROUND - JANGAN TUNGGU
+    handlePostLoginSetup(kodeKantor, uname, tenantName).catch(error => {
+      console.warn('[auth] Background post-login setup failed:', error)
+    })
 
     return { success: true, user: { id: userId, username: uname } }
   } catch (error: any) {
@@ -96,19 +95,68 @@ export async function login({ username, password, kodeKantor }: LoginPayload) {
   }
 }
 
-async function handleLoginTracking(kodeKantor: number): Promise<void> {
+// PISAHKAN POST-LOGIN SETUP AGAR BISA DIJALANKAN DI BACKGROUND
+async function handlePostLoginSetup(kodeKantor: number, username: string, tenantName?: string): Promise<void> {
+  console.log('[auth] Starting background post-login setup...')
+  
+  try {
+    // Setup push notification dan tenant (cepat)
+    if (tenantName) {
+      await ensureTenantRow(kodeKantor, tenantName)
+    }
+    await syncOneSignalToken(kodeKantor, username)
+    console.log('[auth] Push notification setup completed')
+  } catch (e) {
+    console.warn('[auth] Push setup warning:', e)
+  }
+
+  // Location tracking setup (lambat, jadi di-defer)
+  try {
+    await handleLocationTrackingSetup(kodeKantor)
+  } catch (e) {
+    console.warn('[auth] Location tracking setup failed:', e)
+  }
+}
+
+async function handleLocationTrackingSetup(kodeKantor: number): Promise<void> {
   try {
     const ljk = String(kodeKantor)
+    console.log('[auth] Checking if location tracking is enabled...')
+    
     const enabled = await isLocationTrackingEnabled(ljk)
-    console.log('[auth] tracking enabled:', enabled)
-    if (!enabled) return
+    console.log('[auth] Location tracking enabled:', enabled)
+    
+    if (!enabled) {
+      console.log('[auth] Location tracking disabled, skipping setup')
+      return
+    }
 
-    // 1) kirim titik sekali
-    await startLoginTrackingIfEnabled(ljk)
+    // Jalankan login tracking di background dengan timeout yang lebih pendek
+    console.log('[auth] Starting login location tracking...')
+    const loginTrackingPromise = startLoginTrackingIfEnabled(ljk)
+    
+    // Jalankan background tracking setup
+    console.log('[auth] Starting background location tracking...')
+    const backgroundTrackingPromise = startBackgroundTrackingIfEnabled(ljk)
 
-    // 2) mulai periodik / foreground service
-    await startBackgroundTrackingIfEnabled(ljk)
+    // Tunggu keduanya dengan timeout
+    await Promise.allSettled([
+      Promise.race([
+        loginTrackingPromise,
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Login tracking timeout')), 5000)
+        )
+      ]),
+      Promise.race([
+        backgroundTrackingPromise,
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Background tracking timeout')), 3000)
+        )
+      ])
+    ])
+
+    console.log('[auth] Location tracking setup completed (with possible timeouts)')
   } catch (e) {
-    console.warn('[auth] tracking setup error:', e)
+    console.warn('[auth] Location tracking setup error:', e)
   }
 }

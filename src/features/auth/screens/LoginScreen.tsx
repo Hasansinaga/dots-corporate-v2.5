@@ -58,16 +58,19 @@ const LoginScreen: React.FC = () => {
 
   const handleSubmit = async () => {
     if (isSubmitting || f.loading) return
+    
     try {
       setIsSubmitting(true)
       setLocalError(undefined)
 
       const res: SubmitResult | any = await f.submit()
+      
       if (res?.ok === false) {
         pushError(res?.message ?? "Login gagal. Periksa kembali data Anda.")
         return
       }
 
+      // Jika berhasil, signIn untuk update auth state
       const cand = res?.user ?? res?.data?.user ?? null
       const user = {
         id: cand?.id ?? "local",
@@ -77,15 +80,9 @@ const LoginScreen: React.FC = () => {
 
       signIn(user)
 
-      setTimeout(() => {
-        try {
-          // @ts-expect-error navigation type
-          navigation.reset({ index: 0, routes: [{ name: "HomeTabs" }] })
-        } catch (e) {
-          // @ts-expect-error navigation type
-          navigation.navigate("HomeTabs")
-        }
-      }, 80)
+      // Navigation sudah dihandle di useLoginForm, tidak perlu timeout lagi
+      console.log('[login] Login successful, navigation handled by useLoginForm')
+
     } catch (error: any) {
       console.error("[login] submit error:", error)
       pushError(error?.message || "Terjadi kesalahan saat login. Coba lagi.")
@@ -192,7 +189,9 @@ const LoginScreen: React.FC = () => {
               disabled={isLoading}
               activeOpacity={0.8}
             >
-              <Text style={styles.loginButtonText}>{isLoading ? "Memuat…" : "Masuk"}</Text>
+              <Text style={styles.loginButtonText}>
+                {isLoading ? "Memuat…" : "Masuk"}
+              </Text>
             </TouchableOpacity>
 
             <Text style={styles.versionText}>
