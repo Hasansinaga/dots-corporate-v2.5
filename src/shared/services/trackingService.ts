@@ -16,7 +16,6 @@ let isLocationTracking = false;
 const TRACKING_FLAG_KEY = 'trackingActive';
 const HEARTBEAT_MS = 60_000;
 
-// Configure Geolocation according to documentation
 Geolocation.setRNConfiguration({
   skipPermissionRequests: false,
   authorizationLevel: 'auto',
@@ -358,7 +357,7 @@ export async function isLocationTrackingEnabled(overrideLjk?: string): Promise<b
       }
 
       const url = '/core/company-cfgsys';
-      const params = { ljk_code: ljk, code: 'MBCORP_COLLECTIBILITY_SYSTEM' };
+      const params = { ljk_code: ljk, code: 'MBCORP_LOCATION_TRACK' };
       console.log('[tracking] Checking location tracking config for tenant:', ljk);
 
       const tryRequest = async (attempt: string): Promise<boolean> => {
@@ -384,7 +383,7 @@ export async function isLocationTrackingEnabled(overrideLjk?: string): Promise<b
             console.log(`[tracking] Response is array with ${data.length} items`);
 
             if (data.length === 0) {
-              console.warn('[tracking] Empty array - MBCORP_COLLECTIBILITY_SYSTEM config not found');
+              console.warn('[tracking] Empty array - MBCORP_LOCATION_TRACK config not found');
               return false;
             }
 
@@ -392,7 +391,7 @@ export async function isLocationTrackingEnabled(overrideLjk?: string): Promise<b
               data.find(
                 (item: CompanyConfigResponse) =>
                   item &&
-                  item.code === 'MBCORP_COLLECTIBILITY_SYSTEM' &&
+                  item.code === 'MBCORP_LOCATION_TRACK' &&
                   item.ljk_code === ljk,
               ) || null;
 
@@ -400,17 +399,17 @@ export async function isLocationTrackingEnabled(overrideLjk?: string): Promise<b
               configItem =
                 data.find(
                   (item: CompanyConfigResponse) =>
-                    item && item.code === 'MBCORP_COLLECTIBILITY_SYSTEM',
+                    item && item.code === 'MBCORP_LOCATION_TRACK',
                 ) || null;
             }
           } else if (data && typeof data === 'object') {
-            if (data.code === 'MBCORP_COLLECTIBILITY_SYSTEM') {
+            if (data.code === 'MBCORP_LOCATION_TRACK') {
               configItem = data;
             }
           }
 
           if (!configItem) {
-            console.warn('[tracking] MBCORP_COLLECTIBILITY_SYSTEM config not found');
+            console.warn('[tracking] MBCORP_LOCATION_TRACK config not found');
             return false;
           }
 
@@ -894,7 +893,7 @@ export async function testLocationTrackingAPI(overrideLjk?: string): Promise<{
 
     const headers = await getAuthHeaders(ljk);
     const url = '/core/company-cfgsys';
-    const params = { ljk_code: ljk, code: 'MBCORP_COLLECTIBILITY_SYSTEM' };
+    const params = { ljk_code: ljk, code: 'MBCORP_LOCATION_TRACK' };
 
     console.log('[tracking] Testing API connection...');
     const response = await API.get(url, { params, headers, timeout: 10000 });
