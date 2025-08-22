@@ -1,4 +1,4 @@
-// ===== authService.ts =====
+// authService.ts - Updated with new tracking service structure
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import API from "../../../shared/services/APIManager"
 import { jwtDecode } from 'jwt-decode'
@@ -8,7 +8,7 @@ import {
   isLocationTrackingEnabled,
   startLoginTrackingIfEnabled,
   startBackgroundTrackingIfEnabled,
-} from "../../../shared/services/trackingService"
+} from "../../../shared/services/trackingSevice/trackingService"
 
 export interface LoginResponse { access_token: string }
 export interface DecodedToken {
@@ -56,14 +56,11 @@ export async function login({ username, password, kodeKantor }: LoginPayload) {
       ["tenantName", tenantName],
     ])
 
-    // set header default untuk request selanjutnya
     API.defaults.headers.common.Authorization = `Bearer ${data.access_token}`
     API.defaults.headers.common["X-Tenant-Id"] = String(kodeKantor)
 
-    // prioritas tertinggi: in-memory tenant
     setActiveTenant(String(kodeKantor))
 
-    // JALANKAN POST-LOGIN SETUP DI BACKGROUND - JANGAN TUNGGU
     handlePostLoginSetup(kodeKantor, uname, tenantName).catch(error => {
       console.warn('[auth] Background post-login setup failed:', error)
     })
@@ -95,12 +92,10 @@ export async function login({ username, password, kodeKantor }: LoginPayload) {
   }
 }
 
-// PISAHKAN POST-LOGIN SETUP AGAR BISA DIJALANKAN DI BACKGROUND
 async function handlePostLoginSetup(kodeKantor: number, username: string, tenantName?: string): Promise<void> {
   console.log('[auth] Starting background post-login setup...')
   
   try {
-    // Setup push notification dan tenant (cepat)
     if (tenantName) {
       await ensureTenantRow(kodeKantor, tenantName)
     }
@@ -110,7 +105,6 @@ async function handlePostLoginSetup(kodeKantor: number, username: string, tenant
     console.warn('[auth] Push setup warning:', e)
   }
 
-  // Location tracking setup (lambat, jadi di-defer)
   try {
     await handleLocationTrackingSetup(kodeKantor)
   } catch (e) {
