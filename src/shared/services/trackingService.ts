@@ -12,9 +12,11 @@ let ACTIVE_TENANT: string | null = null;
 let BG_TIMER_ID: ReturnType<typeof setInterval> | null = null;
 let WATCH_ID: number | null = null;
 let isLocationTracking = false;
+let GPS_CHECK_TIMER: ReturnType<typeof setInterval> | null = null;
 
 const TRACKING_FLAG_KEY = 'trackingActive';
 const HEARTBEAT_MS = 60_000;
+const GPS_CHECK_MS = 30_000;
 
 Geolocation.setRNConfiguration({
   skipPermissionRequests: false,
@@ -275,6 +277,53 @@ function checkGpsAvailable(): Promise<boolean> {
     } catch (e) {
       clearTimeout(timeout);
       cleanup(false, `exception: ${e}`);
+    }
+  });
+}
+
+// New function to check if GPS is currently available (for monitoring)
+export async function checkGpsCurrently(): Promise<boolean> {
+  if (!geolocationAvailable()) return false;
+
+  return new Promise(resolve => {
+    let resolved = false;
+
+    const cleanup = (result: boolean) => {
+      if (!resolved) {
+        resolved = true;
+        resolve(result);
+      }
+    };
+
+    const timeout = setTimeout(() => {
+      cleanup(false);
+    }, 5000);
+
+    try {
+      Geolocation.getCurrentPosition(
+        () => {
+          clearTimeout(timeout);
+          cleanup(true);
+        },
+        (error) => {
+          clearTimeout(timeout);
+          // GPS disabled errors
+          if (error?.code === 2 || error?.code === 3) {
+            cleanup(false);
+          } else {
+            // Other errors might still mean GPS is on but other issues
+            cleanup(true);
+          }
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 4000,
+          maximumAge: 0,
+        },
+      );
+    } catch (e) {
+      clearTimeout(timeout);
+      cleanup(false);
     }
   });
 }
@@ -557,6 +606,39 @@ async function postLocationHeartbeat(overrideLjk?: string, desc = 'Heartbeat'): 
   }
 }
 
+// Start GPS monitoring timer
+function startGpsMonitoring() {
+  if (GPS_CHECK_TIMER) {
+    clearInterval(GPS_CHECK_TIMER);
+  }
+
+  GPS_CHECK_TIMER = setInterval(async () => {
+    try {
+      const gpsAvailable = await checkGpsCurrently();
+      console.log('[tracking] GPS monitor check:', gpsAvailable);
+      
+      if (!gpsAvailable) {
+        console.warn('[tracking] GPS appears to be disabled during monitoring');
+        // You can emit an event or call a callback here to notify the UI
+        // For now, just log the issue
+      }
+    } catch (error) {
+      console.warn('[tracking] GPS monitor error:', error);
+    }
+  }, GPS_CHECK_MS);
+
+  console.log('[tracking] GPS monitoring started');
+}
+
+// Stop GPS monitoring timer
+function stopGpsMonitoring() {
+  if (GPS_CHECK_TIMER) {
+    clearInterval(GPS_CHECK_TIMER);
+    GPS_CHECK_TIMER = null;
+    console.log('[tracking] GPS monitoring stopped');
+  }
+}
+
 // Updated background tracking with watchPosition
 export async function startBackgroundTrackingIfEnabled(overrideLjk?: string): Promise<boolean> {
   try {
@@ -591,6 +673,9 @@ export async function startBackgroundTrackingIfEnabled(overrideLjk?: string): Pr
     }
 
     isLocationTracking = true;
+
+    // Start GPS monitoring
+    startGpsMonitoring();
 
     // Try native foreground service for Android
     if (Platform.OS === 'android') {
@@ -698,6 +783,9 @@ export async function stopBackgroundTracking(): Promise<void> {
   console.log('[tracking] === STOPPING BACKGROUND TRACKING ===');
 
   isLocationTracking = false;
+
+  // Stop GPS monitoring
+  stopGpsMonitoring();
 
   // Stop watchPosition if active
   if (WATCH_ID !== null) {
@@ -872,6 +960,144 @@ export async function isTrackingActive(): Promise<boolean> {
   }
 }
 
+// Enhanced tracking status that checks both flag and actual running status
+export async function getDetailedTrackingStatus(): Promise<{
+  flagActive: boolean;
+  watchActive: boolean;
+  timerActive: boolean;
+  gpsMonitorActive: boolean;
+  locationTracking: boolean;
+}> {
+  try {
+    const flag = await AsyncStorage.getItem(TRACKING_FLAG_KEY);
+    const flagActive = flag === '1';
+    
+    return {
+      flagActive,
+      watchActive: WATCH_ID !== null,
+      timerActive: BG_TIMER_ID !== null,
+      gpsMonitorActive: GPS_CHECK_TIMER !== null,
+      locationTracking: isLocationTracking,
+    };
+  } catch (error) {
+    console.error('[tracking] Error getting detailed tracking status:', error);
+    return {
+      flagActive: false,
+      watchActive: false,
+      timerActive: false,
+      gpsMonitorActive: false,
+      locationTracking: false,
+    };
+  }
+}
+
+// Force stop all tracking components
+export async function forceStopAllTracking(): Promise<void> {
+  console.log('[tracking] === FORCE STOPPING ALL TRACKING ===');
+  
+  // Set flags
+  isLocationTracking = false;
+  
+  // Stop all timers
+  if (GPS_CHECK_TIMER) {
+    clearInterval(GPS_CHECK_TIMER);
+    GPS_CHECK_TIMER = null;
+  }
+  
+  if (BG_TIMER_ID) {
+    clearInterval(BG_TIMER_ID);
+    BG_TIMER_ID = null;
+  }
+  
+  if (WATCH_ID !== null) {
+    try {
+      Geolocation.clearWatch(WATCH_ID);
+      WATCH_ID = null;
+    } catch (error) {
+      console.warn('[tracking] Error clearing watch:', error);
+    }
+  }
+  
+  // Stop native services
+  if (Platform.OS === 'android') {
+    const intentLauncher = getIntentLauncher();
+    if (intentLauncher?.stopLocationService) {
+      try {
+        await intentLauncher.stopLocationService();
+      } catch (error) {
+        console.warn('[tracking] Error stopping native service:', error);
+      }
+    }
+  }
+  
+  // Stop geolocation observing
+  try {
+    Geolocation.stopObserving();
+  } catch (error) {
+    console.warn('[tracking] Error stopping geolocation observing:', error);
+  }
+  
+  // Update storage
+  try {
+    await AsyncStorage.setItem(TRACKING_FLAG_KEY, '0');
+  } catch (error) {
+    console.warn('[tracking] Error updating storage flag:', error);
+  }
+  
+  console.log('[tracking] === FORCE STOP COMPLETE ===');
+}
+
+// Check if location services are currently enabled on device
+export async function checkLocationServicesEnabled(): Promise<boolean> {
+  try {
+    // First check basic geolocation availability
+    if (!geolocationAvailable()) {
+      console.warn('[tracking] Geolocation service not available');
+      return false;
+    }
+    
+    // Then check if we can actually get location
+    const gpsAvailable = await checkGpsCurrently();
+    console.log('[tracking] GPS currently available:', gpsAvailable);
+    
+    return gpsAvailable;
+  } catch (error) {
+    console.error('[tracking] Error checking location services:', error);
+    return false;
+  }
+}
+
+// Get current location for testing purposes
+export async function getCurrentLocationTest(): Promise<{
+  success: boolean;
+  location?: { lat: number; lng: number; accuracy?: number };
+  error?: string;
+}> {
+  try {
+    const location = await getLocationOnceSafe();
+    if (location) {
+      return { success: true, location };
+    } else {
+      return { success: false, error: 'Unable to get location' };
+    }
+  } catch (error: any) {
+    return { success: false, error: error?.message || 'Unknown error' };
+  }
+}
+
+// Send test heartbeat
+export async function sendTestHeartbeat(overrideLjk?: string): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  try {
+    const success = await postLocationHeartbeat(overrideLjk, 'TestHeartbeat');
+    return { success };
+  } catch (error: any) {
+    return { success: false, error: error?.message || 'Unknown error' };
+  }
+}
+
 function getIntentLauncher() {
   try {
     return (NativeModules as any)?.IntentLauncher ?? null;
@@ -908,15 +1134,119 @@ export async function testLocationTrackingAPI(overrideLjk?: string): Promise<{
   }
 }
 
+// Comprehensive health check
+export async function performTrackingHealthCheck(overrideLjk?: string): Promise<{
+  overall: 'healthy' | 'warning' | 'error';
+  checks: {
+    geolocationAvailable: boolean;
+    permissions: boolean;
+    gpsEnabled: boolean;
+    serverConfig: boolean;
+    apiConnection: boolean;
+  };
+  details: string[];
+}> {
+  const checks = {
+    geolocationAvailable: false,
+    permissions: false,
+    gpsEnabled: false,
+    serverConfig: false,
+    apiConnection: false,
+  };
+  const details: string[] = [];
+  
+  try {
+    // Check geolocation availability
+    checks.geolocationAvailable = geolocationAvailable();
+    if (checks.geolocationAvailable) {
+      details.push('✅ Geolocation service available');
+    } else {
+      details.push('❌ Geolocation service not available');
+    }
+    
+    // Check permissions
+    checks.permissions = await ensurePermission();
+    if (checks.permissions) {
+      details.push('✅ Location permissions granted');
+    } else {
+      details.push('❌ Location permissions not granted');
+    }
+    
+    // Check GPS
+    checks.gpsEnabled = await checkLocationServicesEnabled();
+    if (checks.gpsEnabled) {
+      details.push('✅ GPS/Location services enabled');
+    } else {
+      details.push('❌ GPS/Location services disabled');
+    }
+    
+    // Check server config
+    checks.serverConfig = await isLocationTrackingEnabled(overrideLjk);
+    if (checks.serverConfig) {
+      details.push('✅ Server tracking config enabled');
+    } else {
+      details.push('ℹ️ Server tracking config disabled or not found');
+    }
+    
+    // Check API connection
+    const apiTest = await testLocationTrackingAPI(overrideLjk);
+    checks.apiConnection = apiTest.success;
+    if (checks.apiConnection) {
+      details.push('✅ API connection successful');
+    } else {
+      details.push(`❌ API connection failed: ${apiTest.error}`);
+    }
+    
+  } catch (error) {
+    details.push(`❌ Health check error: ${error}`);
+  }
+  
+  // Determine overall health
+  let overall: 'healthy' | 'warning' | 'error' = 'healthy';
+  
+  if (!checks.geolocationAvailable || !checks.permissions || !checks.gpsEnabled) {
+    overall = 'error';
+  } else if (!checks.serverConfig || !checks.apiConnection) {
+    overall = 'warning';
+  }
+  
+  return { overall, checks, details };
+}
+
+// Cleanup function for app shutdown or logout
+export async function cleanupTracking(): Promise<void> {
+  console.log('[tracking] === CLEANUP TRACKING ===');
+  
+  try {
+    await forceStopAllTracking();
+    
+    // Clear tenant
+    ACTIVE_TENANT = null;
+    delete API.defaults.headers.common['X-Tenant-Id'];
+    
+    console.log('[tracking] === CLEANUP COMPLETE ===');
+  } catch (error) {
+    console.error('[tracking] Error during cleanup:', error);
+  }
+}
+
 export default {
   setActiveTenant,
   isLocationTrackingEnabled,
   ensureLocationReady,
+  checkLocationServicesEnabled,
+  checkGpsCurrently,
   sendLoginLocationOnce,
   startLoginTrackingIfEnabled,
   startLoginTrackingSafe,
   startBackgroundTrackingIfEnabled,
   stopBackgroundTracking,
+  forceStopAllTracking,
   isTrackingActive,
+  getDetailedTrackingStatus,
+  getCurrentLocationTest,
+  sendTestHeartbeat,
   testLocationTrackingAPI,
+  performTrackingHealthCheck,
+  cleanupTracking,
 };
