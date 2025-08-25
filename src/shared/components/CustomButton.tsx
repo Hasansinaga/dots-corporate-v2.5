@@ -1,13 +1,12 @@
-import 'react-native-gesture-handler'
-import { useEffect } from "react"
-import { TouchableOpacity, Text, ViewStyle } from "react-native"
-import { colors } from "../../shared/constants/colors"
+import 'react-native-gesture-handler';
+import { TouchableOpacity, Text, ViewStyle } from "react-native";
+import { colors } from "../../theme";
 
 interface Props {
-  title: string
-  onPress?: () => void
-  disabled?: boolean
-  style?: ViewStyle
+  title: string;
+  onPress?: () => void;
+  disabled?: boolean;
+  style?: ViewStyle;
 }
 
 export function CustomButton({ title, onPress, disabled, style }: Props) {
@@ -24,5 +23,7 @@ export function CustomButton({ title, onPress, disabled, style }: Props) {
     >
       <Text style={{ color: "#fff", textAlign: "center", fontWeight: "700", fontSize: 16 }}>{title}</Text>
     </TouchableOpacity>
-  )
+  );
 }
+
+export default CustomButton;

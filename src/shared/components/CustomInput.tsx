@@ -1,11 +1,11 @@
-import { ReactNode, useEffect } from "react"
-import { View, Text, TextInput, TextInputProps } from "react-native"
+import { ReactNode } from "react";
+import { View, Text, TextInput, TextInputProps } from "react-native";
 
 interface Props extends TextInputProps {
-  label?: string
-  errorText?: string
-  leftSlot?: ReactNode
-  rightComponent?: ReactNode
+  label?: string;
+  errorText?: string;
+  leftSlot?: ReactNode;
+  rightComponent?: ReactNode;
 }
 
 export function CustomInput({ label, errorText, leftSlot, rightComponent, style, ...rest }: Props) {
@@ -31,5 +31,7 @@ export function CustomInput({ label, errorText, leftSlot, rightComponent, style,
       </View>
       {errorText ? <Text style={{ marginTop: 6, color: "#c00", fontSize: 12 }}>{errorText}</Text> : null}
     </View>
-  )
+  );
 }
+
+export default CustomInput;
