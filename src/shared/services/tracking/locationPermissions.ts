@@ -1,4 +1,4 @@
-// locationPermissions.ts - Fixed version with proper GPS detection
+// locationPermissions.ts - Enhanced with GPS monitoring every 1 minute
 import Geolocation from '@react-native-community/geolocation';
 import { PermissionsAndroid, Platform } from 'react-native';
 import { safeAsync, geolocationAvailable } from './trackingCore';
@@ -7,6 +7,12 @@ import { safeAsync, geolocationAvailable } from './trackingCore';
 let lastGpsCheck: { result: boolean; timestamp: number } | null = null;
 let isCheckingGps = false;
 const GPS_CACHE_DURATION = 5000; // 5 detik
+
+// GPS Monitor - NEW FEATURE
+let gpsMonitorInterval: NodeJS.Timeout | null = null;
+let gpsStatusCallbacks: Set<(isEnabled: boolean) => void> = new Set();
+let lastKnownGpsStatus: boolean | null = null;
+let isMonitoringActive = false;
 
 // Permission handling according to documentation
 export async function ensurePermission(): Promise<boolean> {
@@ -324,6 +330,157 @@ export async function checkGpsCurrently(): Promise<boolean> {
     }
   });
 }
+
+// ========== NEW GPS MONITORING FUNCTIONS ==========
+
+/**
+ * Start monitoring GPS status every 1 minute
+ * @param onStatusChange - Callback function that will be called when GPS status changes
+ */
+export function startGpsMonitoring(onStatusChange?: (isEnabled: boolean) => void): void {
+  console.log('[tracking] Starting GPS monitoring (1-minute intervals)...');
+  
+  // Add callback if provided
+  if (onStatusChange) {
+    gpsStatusCallbacks.add(onStatusChange);
+  }
+  
+  // Don't start multiple monitors
+  if (isMonitoringActive) {
+    console.log('[tracking] GPS monitoring already active');
+    return;
+  }
+  
+  isMonitoringActive = true;
+  
+  // Initial check
+  checkGpsStatusAndNotify();
+  
+  // Set up interval for every minute
+  gpsMonitorInterval = setInterval(() => {
+    checkGpsStatusAndNotify();
+  }, 60000); // 60 seconds = 1 minute
+  
+  console.log('[tracking] GPS monitoring started - will check every 1 minute');
+}
+
+/**
+ * Stop GPS monitoring
+ */
+export function stopGpsMonitoring(): void {
+  console.log('[tracking] Stopping GPS monitoring...');
+  
+  if (gpsMonitorInterval) {
+    clearInterval(gpsMonitorInterval);
+    gpsMonitorInterval = null;
+  }
+  
+  isMonitoringActive = false;
+  lastKnownGpsStatus = null;
+  
+  console.log('[tracking] GPS monitoring stopped');
+}
+
+/**
+ * Add a callback to be notified when GPS status changes
+ * @param callback - Function to be called with the new GPS status
+ */
+export function addGpsStatusListener(callback: (isEnabled: boolean) => void): void {
+  gpsStatusCallbacks.add(callback);
+  
+  // If we have a current status, notify immediately
+  if (lastKnownGpsStatus !== null) {
+    callback(lastKnownGpsStatus);
+  }
+}
+
+/**
+ * Remove a GPS status change callback
+ * @param callback - The callback function to remove
+ */
+export function removeGpsStatusListener(callback: (isEnabled: boolean) => void): void {
+  gpsStatusCallbacks.delete(callback);
+}
+
+/**
+ * Get the current GPS monitoring status
+ */
+export function getGpsMonitoringStatus(): {
+  isActive: boolean;
+  currentStatus: boolean | null;
+  callbackCount: number;
+  lastCheckTime?: number;
+} {
+  return {
+    isActive: isMonitoringActive,
+    currentStatus: lastKnownGpsStatus,
+    callbackCount: gpsStatusCallbacks.size,
+    lastCheckTime: lastGpsCheck?.timestamp,
+  };
+}
+
+/**
+ * Force an immediate GPS status check (outside the regular interval)
+ */
+export async function forceGpsStatusCheck(): Promise<boolean> {
+  console.log('[tracking] Forcing immediate GPS status check...');
+  
+  // Clear cache to ensure fresh check
+  lastGpsCheck = null;
+  
+  const status = await checkGpsCurrently();
+  
+  // Update current status and notify if changed
+  if (lastKnownGpsStatus !== status) {
+    const previousStatus = lastKnownGpsStatus;
+    lastKnownGpsStatus = status;
+    
+    console.log(`[tracking] GPS status changed: ${previousStatus} → ${status}`);
+    
+    // Notify all listeners
+    gpsStatusCallbacks.forEach(callback => {
+      try {
+        callback(status);
+      } catch (error) {
+        console.error('[tracking] Error in GPS status callback:', error);
+      }
+    });
+  }
+  
+  return status;
+}
+
+/**
+ * Internal function to check GPS status and notify listeners if changed
+ */
+async function checkGpsStatusAndNotify(): Promise<void> {
+  try {
+    const status = await checkGpsCurrently();
+    
+    // Only notify if status actually changed
+    if (lastKnownGpsStatus !== status) {
+      const previousStatus = lastKnownGpsStatus;
+      lastKnownGpsStatus = status;
+      
+      console.log(`[tracking] GPS status changed: ${previousStatus} → ${status}`);
+      
+      // Notify all registered callbacks
+      gpsStatusCallbacks.forEach(callback => {
+        try {
+          callback(status);
+        } catch (error) {
+          console.error('[tracking] Error in GPS status callback:', error);
+        }
+      });
+    } else {
+      console.log(`[tracking] GPS status unchanged: ${status}`);
+    }
+  } catch (error) {
+    console.error('[tracking] Error during GPS status check:', error);
+  }
+}
+
+// ========== END NEW GPS MONITORING FUNCTIONS ==========
 
 // FIXED: Better location readiness check with retry logic
 export async function ensureLocationReady(): Promise<boolean> {

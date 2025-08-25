@@ -8,7 +8,7 @@ import {
   isLocationTrackingEnabled,
   startLoginTrackingIfEnabled,
   startBackgroundTrackingIfEnabled,
-} from "../../../shared/services/trackingSevice/trackingService"
+} from "../../../shared/services/tracking/trackingService"
 
 export interface LoginResponse { access_token: string }
 export interface DecodedToken {
