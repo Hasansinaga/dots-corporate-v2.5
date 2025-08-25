@@ -1,4 +1,3 @@
-// HomeScreen.tsx - Fixed with proper device settings navigation and logout
 import React, {
   useMemo,
   useState,
@@ -35,7 +34,16 @@ import {
   isTrackingActive,
   stopBackgroundTracking,
   ensureLocationReady,
-} from '../../../shared/services/trackingService';
+} from '../../../shared/services/tracking/trackingService';
+
+import {
+  startGpsMonitoring,
+  stopGpsMonitoring,
+  addGpsStatusListener,
+  removeGpsStatusListener,
+  getGpsMonitoringStatus,
+  forceGpsStatusCheck,
+} from '../../../shared/services/tracking/locationPermissions';
 
 const { width } = Dimensions.get('window');
 
@@ -120,6 +128,11 @@ export default function HomeScreen() {
 
   const [trackingActive, setTrackingActive] = useState<boolean>(false);
   const [locationRequired, setLocationRequired] = useState<boolean>(false);
+  
+  // NEW: GPS monitoring state
+  const [gpsEnabled, setGpsEnabled] = useState<boolean | null>(null);
+  const [gpsMonitoringActive, setGpsMonitoringActive] = useState<boolean>(false);
+  
   const hasShownLocationPrompt = useRef(false);
   const locationCheckInterval = useRef<NodeJS.Timeout | null>(null);
   const isCheckingLocation = useRef(false);
@@ -148,6 +161,83 @@ export default function HomeScreen() {
       return { required: false, active: false };
     }
   }, []);
+
+  // NEW: GPS status change handler
+  const handleGpsStatusChange = useCallback((isEnabled: boolean) => {
+    console.log('[home] GPS status changed to:', isEnabled);
+    setGpsEnabled(isEnabled);
+    
+    if (!isEnabled && locationRequired) {
+      // GPS was turned off and it's required
+      Alert.alert(
+        'GPS Dimatikan',
+        'GPS telah dimatikan. Aplikasi memerlukan GPS untuk tracking lokasi.',
+        [
+          {
+            text: 'Buka Pengaturan',
+            onPress: () => openLocationSettings(),
+          },
+          {
+            text: 'Logout',
+            style: 'destructive',
+            onPress: () => performLogout(),
+          },
+        ],
+        { cancelable: false },
+      );
+    } else if (isEnabled && locationRequired && !trackingActive) {
+      // GPS was turned on, try to restart tracking
+      console.log('[home] GPS enabled, attempting to restart tracking...');
+      setTimeout(async () => {
+        try {
+          const success = await startBackgroundTrackingIfEnabled();
+          if (success) {
+            await refreshTrackingStatus();
+            console.log('[home] Tracking restarted successfully');
+          }
+        } catch (error) {
+          console.warn('[home] Failed to restart tracking:', error);
+        }
+      }, 2000); // Wait 2 seconds for GPS to stabilize
+    }
+  }, [locationRequired, trackingActive]);
+
+  // NEW: Start/stop GPS monitoring based on location requirement
+  useEffect(() => {
+    if (locationRequired && !gpsMonitoringActive) {
+      console.log('[home] Starting GPS monitoring...');
+      setGpsMonitoringActive(true);
+      
+      // Add our status change listener
+      addGpsStatusListener(handleGpsStatusChange);
+      
+      // Start monitoring with callback
+      startGpsMonitoring(handleGpsStatusChange);
+      
+      // Force initial check
+      forceGpsStatusCheck().then(status => {
+        setGpsEnabled(status);
+      });
+      
+    } else if (!locationRequired && gpsMonitoringActive) {
+      console.log('[home] Stopping GPS monitoring...');
+      setGpsMonitoringActive(false);
+      
+      // Remove listener and stop monitoring
+      removeGpsStatusListener(handleGpsStatusChange);
+      stopGpsMonitoring();
+      
+      setGpsEnabled(null);
+    }
+
+    return () => {
+      // Cleanup when component unmounts
+      if (gpsMonitoringActive) {
+        removeGpsStatusListener(handleGpsStatusChange);
+        stopGpsMonitoring();
+      }
+    };
+  }, [locationRequired, gpsMonitoringActive, handleGpsStatusChange]);
 
   const openLocationSettings = useCallback(async () => {
     try {
@@ -219,7 +309,14 @@ export default function HomeScreen() {
     try {
       console.log('[home] Performing logout...');
 
-      // Stop tracking first
+      // Stop GPS monitoring first
+      if (gpsMonitoringActive) {
+        removeGpsStatusListener(handleGpsStatusChange);
+        stopGpsMonitoring();
+        setGpsMonitoringActive(false);
+      }
+
+      // Stop tracking
       await stopBackgroundTracking();
 
       // Clear any intervals
@@ -262,7 +359,7 @@ export default function HomeScreen() {
         signOut();
       }
     }
-  }, [navigation, signOut]);
+  }, [navigation, signOut, gpsMonitoringActive, handleGpsStatusChange]);
 
   const handleLocationPrompt = useCallback(async () => {
     if (!locationRequired || hasShownLocationPrompt.current) return;
@@ -391,6 +488,10 @@ export default function HomeScreen() {
         setTimeout(() => {
           checkLocationServices();
           refreshTrackingStatus();
+          // Also force GPS check when app becomes active
+          if (gpsMonitoringActive) {
+            forceGpsStatusCheck();
+          }
         }, 1000);
       }
     };
@@ -400,7 +501,7 @@ export default function HomeScreen() {
       handleAppStateChange,
     );
     return () => subscription?.remove();
-  }, [locationRequired, checkLocationServices, refreshTrackingStatus]);
+  }, [locationRequired, checkLocationServices, refreshTrackingStatus, gpsMonitoringActive]);
 
   // Set up periodic location check
   useEffect(() => {
@@ -524,12 +625,30 @@ export default function HomeScreen() {
         [{ text: 'OK' }],
       );
     } else {
-      // Already active, show info
-      Alert.alert('Tracking Aktif', 'Tracking lokasi sedang berjalan.', [
-        { text: 'OK' },
-      ]);
+      // Already active, show info with GPS monitoring status
+      const monitorStatus = getGpsMonitoringStatus();
+      Alert.alert(
+        'Tracking Aktif', 
+        `Tracking lokasi sedang berjalan.\n\nGPS Monitor: ${monitorStatus.isActive ? 'Aktif' : 'Nonaktif'}\nStatus GPS: ${gpsEnabled === true ? 'Aktif' : gpsEnabled === false ? 'Nonaktif' : 'Belum diketahui'}`, 
+        [{ text: 'OK' }]
+      );
     }
   };
+
+  // NEW: Function to get GPS badge status and color
+  const getGpsBadgeInfo = () => {
+    if (!locationRequired) return null;
+    
+    if (gpsEnabled === null) {
+      return { text: 'Memeriksa...', style: S.badgeWarning };
+    } else if (gpsEnabled === false) {
+      return { text: 'GPS Mati', style: S.badgeError };
+    } else {
+      return { text: 'GPS Aktif', style: S.badgeActive };
+    }
+  };
+
+  const gpsBadgeInfo = getGpsBadgeInfo();
 
   const actions: QuickActionProps[] = [
     {
@@ -601,6 +720,35 @@ export default function HomeScreen() {
                 ]}
               >
                 {trackingActive ? 'Aktif' : 'Nonaktif'}
+              </Text>
+            </Pressable>
+          )}
+
+          {/* NEW: GPS Status Badge - show only if location is required */}
+          {locationRequired && gpsBadgeInfo && (
+            <Pressable
+              style={[S.row, { marginTop: 6 }]}
+              onPress={() => {
+                Alert.alert(
+                  'Status GPS',
+                  `GPS saat ini ${gpsEnabled === true ? 'aktif' : gpsEnabled === false ? 'tidak aktif' : 'sedang diperiksa'}.\n\nMonitoring GPS: ${gpsMonitoringActive ? 'Berjalan setiap 1 menit' : 'Tidak aktif'}`,
+                  [
+                    {
+                      text: 'Periksa Sekarang',
+                      onPress: async () => {
+                        const status = await forceGpsStatusCheck();
+                        Alert.alert('Hasil Pemeriksaan', `GPS saat ini ${status ? 'aktif' : 'tidak aktif'}.`);
+                      },
+                    },
+                    { text: 'OK' },
+                  ],
+                );
+              }}
+              android_ripple={{ color: 'rgba(0,0,0,0.06)' }}
+            >
+              <Text style={S.cardLabel}>Status GPS</Text>
+              <Text style={[S.badge, gpsBadgeInfo.style]}>
+                {gpsBadgeInfo.text}
               </Text>
             </Pressable>
           )}
@@ -711,6 +859,7 @@ const S = StyleSheet.create({
   badgeInactive: { color: WARN_TEXT, backgroundColor: WARN_BG },
   badgeActive: { color: '#065F46', backgroundColor: '#D1FAE5' },
   badgeWarning: { color: '#DC2626', backgroundColor: '#FEE2E2' },
+  badgeError: { color: '#991B1B', backgroundColor: '#FECACA' },
   statsWrap: {
     marginTop: 14,
     marginBottom: 12,
