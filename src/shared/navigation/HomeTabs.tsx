@@ -5,10 +5,10 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Home, List, QrCode, Bell, Settings } from 'lucide-react-native';
 
 import HomeScreen from '../../features/home/screens/HomeScreen';
-import ActivityScreen from '../../features/home/screens/ActivityScreen';
-import QRScannerScreen from '../../features/home/screens/QRScannerScreen';
-import DemoDebugScreen from '../../features/home/screens/DemoDebugScreen';
-import NotificationScreen from '../../features/home/screens/NotificationScreen';
+import { ActivityScreen } from '../../features/activities';
+import { QRScannerScreen } from '../../features/scanner';
+import { SettingsScreen } from '../../features/settings';
+import { NotificationScreen } from '../../features/notifications';
 
 import { colors, spacing, typography } from '../../theme';
 import { TabParamList } from './types';
@@ -89,7 +89,7 @@ export default function HomeTabs() {
 
         <Tab.Screen
           name="DemoDebug"
-          component={DemoDebugScreen}
+          component={SettingsScreen}
           options={{
             tabBarLabel: 'Pengaturan',
             tabBarIcon: ({ focused, color }) => (

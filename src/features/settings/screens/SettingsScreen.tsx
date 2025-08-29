@@ -5,7 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
 import { colors, spacing, typography } from "../../../theme";
 
-export default function DemoDebugScreen() {
+export default function SettingsScreen() {
   const navigation = useNavigation();
 
   const doLogoutNow = async () => {
