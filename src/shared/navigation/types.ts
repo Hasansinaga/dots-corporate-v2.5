@@ -1,4 +1,4 @@
-export type AppStackParamList = {
+export type RootStackParamList = {
   Login: undefined;
   HomeTabs: undefined;
   DaftarNasabah: undefined;

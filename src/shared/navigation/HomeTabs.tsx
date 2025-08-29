@@ -4,21 +4,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Home, List, QrCode, Bell, Settings } from 'lucide-react-native';
 
-import HomeScreen from '../features/home/screens/HomeScreen';
-import ActivityScreen from '../features/home/screens/ActivityScreen';
-import QRScannerScreen from '../features/home/screens/QRScannerScreen';
-import DemoDebugScreen from '../features/home/screens/DemoDebugScreen';
-import NotificationScreen from '../features/home/screens/NotificationScreen';
+import HomeScreen from '../../features/home/screens/HomeScreen';
+import ActivityScreen from '../../features/home/screens/ActivityScreen';
+import QRScannerScreen from '../../features/home/screens/QRScannerScreen';
+import DemoDebugScreen from '../../features/home/screens/DemoDebugScreen';
+import NotificationScreen from '../../features/home/screens/NotificationScreen';
 
-import { colors, spacing, typography } from '../theme';
-
-type TabParamList = {
-  DemoShowroom: undefined;
-  DemoActivity: undefined;
-  Scan: undefined;
-  DemoPodcastList: undefined;
-  DemoDebug: undefined;
-};
+import { colors, spacing, typography } from '../../theme';
+import { TabParamList } from './types';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 

@@ -5,16 +5,10 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { View, ActivityIndicator } from "react-native";
 
 import LoginScreen from "./features/auth/screens/LoginScreen";
-import HomeTabs from "./navigators/HomeTabs";
+import { HomeTabs, RootStackParamList } from "./shared/navigation";
 import CustomerListScreen from "./features/customers/screens/CustomerListScreen";
 import { useAuth } from "./stores/useAuth";
 import { colors } from "./theme";
-
-export type RootStackParamList = {
-  Login: undefined;
-  HomeTabs: undefined;
-  DaftarNasabah: undefined;
-};
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 

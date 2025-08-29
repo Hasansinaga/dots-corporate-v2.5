@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import  HomeTabs  from './src/navigators/HomeTabs';
+import { HomeTabs } from './src/shared/navigation';
 import { useAuth } from './src/stores/useAuth';
 import { View, ActivityIndicator } from 'react-native';
 

@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { AppStackParamList } from '../../../navigation/types';
+import type { RootStackParamList } from '../../../shared/navigation';
 import { validateLogin } from '../utils/validation';
 import { useAuth } from '../../../stores/useAuth';
 
-type Nav = NativeStackNavigationProp<AppStackParamList>;
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export interface LoginFormState {
   kodeKantor: string;
