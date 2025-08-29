@@ -1,5 +1,5 @@
 // locationService.ts - Location data retrieval and API calls
-import Geolocation from '@react-native-community/geolocation';
+import Geolocation from 'react-native-geolocation-service';
 import API from '../APIManager';
 import { LocationResult, CompanyConfigResponse, safeAsync, geolocationAvailable, getAuthHeaders, resolveTenantId } from './trackingCore';
 

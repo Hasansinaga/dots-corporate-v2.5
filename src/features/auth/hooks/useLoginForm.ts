@@ -7,7 +7,25 @@ import { login as loginService } from '../services/authService';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
-export function useLoginForm() {
+export interface LoginFormState {
+  kodeKantor: string;
+  username: string;
+  password: string;
+  loading: boolean;
+  errors: {
+    general?: string;
+    kodeKantor?: string;
+    username?: string;
+    password?: string;
+  };
+  setKodeKantor: (value: string) => void;
+  setUsername: (value: string) => void;
+  setPassword: (value: string) => void;
+  setErrors: (errors: any) => void;
+  submit: () => Promise<any>;
+}
+
+export function useLoginForm(): LoginFormState {
   const navigation = useNavigation<Nav>();
 
   const [kodeKantor, setKodeKantor] = useState('');

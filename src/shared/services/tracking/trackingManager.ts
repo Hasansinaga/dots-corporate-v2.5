@@ -1,5 +1,5 @@
 // trackingManager.ts - Background tracking and monitoring
-import Geolocation from '@react-native-community/geolocation';
+import Geolocation from 'react-native-geolocation-service';
 import { Platform, NativeModules, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import API from '../APIManager';

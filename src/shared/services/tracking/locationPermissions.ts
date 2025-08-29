@@ -1,5 +1,5 @@
 // locationPermissions.ts - Enhanced with GPS monitoring every 1 minute
-import Geolocation from '@react-native-community/geolocation';
+import Geolocation from 'react-native-geolocation-service';
 import { PermissionsAndroid, Platform } from 'react-native';
 import { safeAsync, geolocationAvailable } from './trackingCore';
 
@@ -24,7 +24,7 @@ export async function ensurePermission(): Promise<boolean> {
           console.log('[tracking] iOS location authorization granted');
           resolve(true);
         },
-        (error) => {
+        (error: any) => {
           console.warn('[tracking] iOS location authorization failed:', error);
           resolve(false);
         }

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet, TextStyle, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Home, List, QrCode, Bell, Settings } from 'lucide-react-native';
+import { Home, List, QrCode, Bell, Settings } from 'lucide-react';
 
 import HomeScreen from '../features/home/screens/HomeScreen';
 import ActivityScreen from '../features/home/screens/ActivityScreen';

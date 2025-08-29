@@ -1,5 +1,5 @@
 // trackingCore.ts - Core tracking functionality
-import Geolocation from '@react-native-community/geolocation';
+import Geolocation from 'react-native-geolocation-service';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import API from '../APIManager';
