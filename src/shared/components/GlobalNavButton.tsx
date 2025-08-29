@@ -1,7 +1,7 @@
 import React from "react";
 import { StyleSheet, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import FontAwesome6 from "react-native-vector-icons/FontAwesome6";
+import { QrCode } from "lucide-react-native";
 import { colors } from "../../theme";
 import { useNavigationState, useNavigation } from "@react-navigation/native";
 
@@ -19,7 +19,7 @@ export function GlobalNavButton() {
       onPress={() => navigation.navigate("Scan" as never)}
       style={[styles.fab, { bottom: insets.bottom + 24 }]}
     >
-      <FontAwesome6 name="qrcode" size={22} color="#fff" solid />
+              <QrCode size={22} color="#fff" />
     </TouchableOpacity>
   );
 }

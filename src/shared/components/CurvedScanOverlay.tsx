@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
-import { Dimensions, StyleSheet } from 'react-native';
-import Svg, { Defs, LinearGradient, Stop, Path } from 'react-native-svg';
+import { Dimensions, StyleSheet, View } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -12,8 +11,6 @@ import Animated, {
 const { width } = Dimensions.get('window');
 const W = width * 0.78;
 const H = 220;
-
-const AnimatedSvg = Animated.createAnimatedComponent(Svg);
 
 export function CurvedScanOverlay() {
   const y = useSharedValue(20);
@@ -30,27 +27,13 @@ export function CurvedScanOverlay() {
     transform: [{ translateY: y.value }],
   }));
 
-  const curve = `
-    M 0 0
-    Q ${W / 2} 22, ${W} 0
-  `;
-
   return (
-    <AnimatedSvg
-      width={W}
-      height={H}
+    <Animated.View
       style={[styles.container, animatedStyle]}
       pointerEvents="none"
     >
-      <Defs>
-        <LinearGradient id="scanGrad" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor="rgba(0, 200, 120, 0.9)" />
-          <Stop offset="1" stopColor="rgba(0, 200, 120, 0.0)" />
-        </LinearGradient>
-      </Defs>
-
-      <Path d={curve} stroke="url(#scanGrad)" strokeWidth={4} fill="none" />
-    </AnimatedSvg>
+      <View style={styles.scanLine} />
+    </Animated.View>
   );
 }
 
@@ -58,6 +41,14 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     alignSelf: 'center',
+    width: W,
+    height: H,
+  },
+  scanLine: {
+    width: W,
+    height: 4,
+    backgroundColor: 'rgba(0, 200, 120, 0.9)',
+    borderRadius: 2,
   },
 });
 

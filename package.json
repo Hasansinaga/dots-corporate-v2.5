@@ -10,7 +10,6 @@
     "test": "jest"
   },
   "dependencies": {
-    "@expo/vector-icons": "^15.0.2",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native/new-app-screen": "0.81.0",
     "@react-navigation/bottom-tabs": "^6.5.0",
@@ -19,7 +18,7 @@
     "@supabase/supabase-js": "^2.55.0",
     "axios": "^1.11.0",
     "jwt-decode": "^4.0.0",
-    "lucide-react": "^0.542.0",
+    "lucide-react-native": "^0.542.0",
     "react": "19.1.0",
     "react-native": "0.81.0",
     "react-native-geolocation-service": "^5.3.1",
@@ -29,8 +28,8 @@
     "react-native-reanimated": "^4.0.3",
     "react-native-safe-area-context": "^5.6.0",
     "react-native-screens": "^4.14.1",
+    "react-native-svg": "^15.12.1",
     "react-native-url-polyfill": "^2.0.0",
-    "react-native-vector-icons": "^10.3.0",
     "react-native-worklets": "^0.4.1",
     "react-native-worklets-core": "^1.6.2",
     "zustand": "^5.0.8"

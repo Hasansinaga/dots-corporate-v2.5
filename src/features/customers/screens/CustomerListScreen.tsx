@@ -3,7 +3,7 @@ import {
   SafeAreaView, View, FlatList, ActivityIndicator, TouchableOpacity,
   StatusBar, Text, Platform, StyleSheet, RefreshControl,
 } from "react-native";
-import FontAwesome6 from "react-native-vector-icons/FontAwesome6";
+import { Filter, User } from "lucide-react-native";
 
 import { useCustomerListViewModel } from "../hooks/useCustomerListViewModel";
 import { SearchBar } from "../components/SearchBar";
@@ -55,7 +55,7 @@ export default function CustomerListScreen({ navigation }: any) {
           accessibilityRole="button"
           accessibilityLabel="Buka filter"
         >
-          <FontAwesome6 name="filter" size={18} color={filterOpen ? "#0E73E3" : "#808080"} />
+          <Filter size={18} color={filterOpen ? "#0E73E3" : "#808080"} />
         </TouchableOpacity>
       </View>
 
@@ -94,7 +94,7 @@ export default function CustomerListScreen({ navigation }: any) {
 
   const EmptyState = (
     <View style={S.empty}>
-      <View style={S.emptyIcon}><FontAwesome6 name="user-large" size={22} color="#9CA3AF" /></View>
+              <View style={S.emptyIcon}><User size={22} color="#9CA3AF" /></View>
       <Text style={S.emptyTitle}>Belum ada data</Text>
       <Text style={S.emptySub}>Coba ketik nama atau CIF lain, atau ubah filter.</Text>
     </View>

@@ -1,6 +1,6 @@
 import React from "react";
 import { View, TextInput, TouchableOpacity, StyleSheet, Platform } from "react-native";
-import FontAwesome6 from "react-native-vector-icons/FontAwesome6";
+import { Search, X } from "lucide-react-native";
 
 type Props = {
   value: string;
@@ -20,7 +20,7 @@ export const SearchBar: React.FC<Props> = ({
   const showClear = !!value?.length;
   return (
     <View style={S.wrap}>
-      <FontAwesome6 name="magnifying-glass" size={16} color="#9CA3AF" style={{ marginRight: 8 }} />
+              <Search size={16} color="#9CA3AF" style={{ marginRight: 8 }} />
       <TextInput
         value={value}
         onChangeText={onChangeText}
@@ -32,7 +32,7 @@ export const SearchBar: React.FC<Props> = ({
       />
       {showClear && (
         <TouchableOpacity onPress={onClear} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <FontAwesome6 name="xmark" size={16} color="#9CA3AF" />
+          <X size={16} color="#9CA3AF" />
         </TouchableOpacity>
       )}
     </View>

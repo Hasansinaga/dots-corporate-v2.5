@@ -23,7 +23,7 @@ import {
   FileText,
   Calculator,
   Briefcase,
-} from 'lucide-react';
+} from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { colors as TColors, spacing, typography } from '../../../theme';

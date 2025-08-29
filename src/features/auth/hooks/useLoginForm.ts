@@ -3,7 +3,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '../../../navigation/types';
 import { validateLogin } from '../utils/validation';
-import { login as loginService } from '../services/authService';
+import { useAuth } from '../../../stores/useAuth';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
@@ -27,6 +27,7 @@ export interface LoginFormState {
 
 export function useLoginForm(): LoginFormState {
   const navigation = useNavigation<Nav>();
+  const { login } = useAuth();
 
   const [kodeKantor, setKodeKantor] = useState('');
   const [username, setUsername] = useState('');
@@ -58,8 +59,8 @@ export function useLoginForm(): LoginFormState {
         return { ok: false, message: "Kode kantor tidak valid" };
       }
 
-      // 3. Panggil service login - TANPA MENUNGGU LOCATION TRACKING
-      const loginResult = await loginService({
+      // 3. Panggil login dari auth store
+      const user = await login({
         username,
         password,
         kodeKantor: kodeKantorInt
@@ -72,7 +73,6 @@ export function useLoginForm(): LoginFormState {
       setErrors({});
 
       // 5. Navigate IMMEDIATELY setelah login berhasil
-      // Gunakan replace agar tidak bisa back ke login screen
       navigation.reset({ 
         index: 0, 
         routes: [{ name: 'HomeTabs' as never }] 
@@ -80,7 +80,7 @@ export function useLoginForm(): LoginFormState {
 
       return { 
         ok: true, 
-        user: loginResult.user
+        user
       };
 
     } catch (error: any) {
@@ -89,32 +89,15 @@ export function useLoginForm(): LoginFormState {
       // Handle different types of errors with user-friendly messages
       let errorMessage = 'Login gagal. Mohon periksa kembali data yang Anda masukkan';
 
-      const status = error?.response?.status;
-      if (status === 401) {
-        errorMessage = 'Username atau password salah';
-      } else if (status === 403) {
-        errorMessage = 'Akses ditolak untuk kode kantor ini';
-      } else if (status === 404) {
-        errorMessage = 'Kode kantor tidak ditemukan';
-      } else if (status === 500) {
-        const serverMessage = error?.response?.data?.message || error?.response?.data?.error;
-        if (serverMessage && !String(serverMessage).toLowerCase().includes('internal')) {
-          errorMessage = serverMessage;
-        } else {
-          errorMessage = 'Login gagal. Mohon periksa kembali data yang Anda masukkan';
-        }
-      } else if (status >= 500) {
-        errorMessage = 'Server sedang bermasalah, coba lagi nanti';
-      } else if (error?.code === 'NETWORK_ERROR' || error?.message?.includes('Network')) {
-        errorMessage = 'Tidak dapat terhubung ke server';
-      } else if (error?.code === 'TIMEOUT' || error?.message?.includes('timeout')) {
-        errorMessage = 'Koneksi timeout, coba lagi';
-      } else if (error?.message && typeof error.message === 'string') {
+      if (error?.message) {
         errorMessage = error.message;
       }
 
       setErrors({ general: errorMessage });
-      return { ok: false, message: errorMessage };
+      return { 
+        ok: false, 
+        message: errorMessage 
+      };
 
     } finally {
       setLoading(false);
@@ -122,10 +105,15 @@ export function useLoginForm(): LoginFormState {
   };
 
   return {
-    kodeKantor, setKodeKantor,
-    username, setUsername, 
-    password, setPassword,
-    loading, errors, setErrors,
+    kodeKantor,
+    username,
+    password,
+    loading,
+    errors,
+    setKodeKantor,
+    setUsername,
+    setPassword,
+    setErrors,
     submit,
   };
 }

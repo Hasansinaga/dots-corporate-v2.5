@@ -1,156 +1,97 @@
 // authService.ts - Updated with new tracking service structure
-import AsyncStorage from "@react-native-async-storage/async-storage"
-import API from "../../../shared/services/APIManager"
-import { jwtDecode } from 'jwt-decode'
-import { ensureTenantRow, syncOneSignalToken } from "../../../shared/services/pushService"
+import { AuthRepository } from "../repositories/authRepository";
+import { User, LoginPayload } from "../../../shared/types/user";
+import { ensureTenantRow, syncOneSignalToken } from "../../../shared/services/pushService";
 import {
   setActiveTenant,
   isLocationTrackingEnabled,
   startLoginTrackingIfEnabled,
   startBackgroundTrackingIfEnabled,
-} from "../../../shared/services/tracking/trackingService"
+} from "../../../shared/services/tracking/trackingService";
 
-export interface LoginResponse { access_token: string }
-export interface DecodedToken {
-  user?: { id?: number; username?: string }
-  tenant?: { name?: string }
-}
-export interface LoginPayload { username: string; password: string; kodeKantor: number }
+export class AuthService {
+  private authRepository: AuthRepository;
 
-export async function login({ username, password, kodeKantor }: LoginPayload) {
-  try {
-    console.log("[auth] Attempting login:", { username, kodeKantor })
+  constructor() {
+    this.authRepository = new AuthRepository();
+  }
 
-    // request tanpa Authorization; tenant dikirim via header
-    const { data } = await API.post<LoginResponse>(
-      "/authentication/login",
-      { username, password },
-      { 
-        headers: { "X-Tenant-Id": String(kodeKantor), Authorization: undefined as any },
-        timeout: 15000 // Set timeout untuk request login
-      },
-    )
-
-    if (!data?.access_token) throw new Error("Token tidak diterima dari server")
-
-    // decode
-    let decoded: DecodedToken
+  async login(credentials: LoginPayload): Promise<User> {
     try {
-      decoded = jwtDecode<DecodedToken>(data.access_token)
-    } catch (e) {
-      console.error("[auth] jwt decode error:", e)
-      throw new Error("Token tidak valid")
+      console.log("[auth] Starting login process...");
+
+      // 1. Perform login through repository
+      const user = await this.authRepository.login(credentials);
+
+      // 2. Set active tenant for tracking
+      setActiveTenant(user.tenantId);
+
+      // 3. Handle post-login setup in background
+      this.handlePostLoginSetup(user).catch(error => {
+        console.warn('[auth] Background post-login setup failed:', error);
+      });
+
+      console.log("[auth] Login successful for user:", user.username);
+      return user;
+    } catch (error) {
+      console.error("[auth] Login service error:", error);
+      throw error;
     }
+  }
 
-    const userId = String(decoded?.user?.id ?? "")
-    const uname = decoded?.user?.username ?? username
-    const tenantName = decoded?.tenant?.name ?? ""
-    if (!userId) throw new Error("Data pengguna tidak valid")
+  async logout(): Promise<void> {
+    try {
+      console.log("[auth] Starting logout process...");
+      await this.authRepository.logout();
+      console.log("[auth] Logout completed");
+    } catch (error) {
+      console.error("[auth] Logout service error:", error);
+      throw error;
+    }
+  }
 
-    // simpan ke storage
-    await AsyncStorage.multiSet([
-      ["authToken", data.access_token],
-      ["kodeKantor", String(kodeKantor)],
-      ["userId", userId],
-      ["username", uname],
-      ["tenantName", tenantName],
-    ])
+  async getCurrentUser(): Promise<User | null> {
+    return await this.authRepository.getCurrentUser();
+  }
 
-    API.defaults.headers.common.Authorization = `Bearer ${data.access_token}`
-    API.defaults.headers.common["X-Tenant-Id"] = String(kodeKantor)
+  async isAuthenticated(): Promise<boolean> {
+    return await this.authRepository.isAuthenticated();
+  }
 
-    setActiveTenant(String(kodeKantor))
+  async getAuthToken(): Promise<string | null> {
+    return await this.authRepository.getAuthToken();
+  }
 
-    handlePostLoginSetup(kodeKantor, uname, tenantName).catch(error => {
-      console.warn('[auth] Background post-login setup failed:', error)
-    })
-
-    return { success: true, user: { id: userId, username: uname } }
-  } catch (error: any) {
-    console.error("[auth] Login error:", error)
-    const status = error?.response?.status
-    const data = error?.response?.data
-
-    if (status === 401) throw new Error("Username atau password salah")
-    if (status === 403) throw new Error("Akses ditolak untuk kode kantor ini")
-    if (status === 404) throw new Error("Kode kantor tidak ditemukan")
-    if (status === 500) {
-      const serverMessage = data?.message || data?.error
-      if (serverMessage && !String(serverMessage).toLowerCase().includes('internal')) {
-        throw new Error(serverMessage)
+  private async handlePostLoginSetup(user: User): Promise<void> {
+    console.log('[auth] Starting background post-login setup...');
+    
+    try {
+      // 1. Setup push notifications
+      if (user.tenantName) {
+        await ensureTenantRow(parseInt(user.tenantId), user.tenantName);
       }
-      throw new Error("Login gagal. Mohon periksa kembali data yang Anda masukkan")
+      await syncOneSignalToken(parseInt(user.tenantId), user.username);
+
+      // 2. Setup location tracking
+      console.log('[auth] Checking if location tracking is enabled...');
+      const trackingEnabled = await isLocationTrackingEnabled(user.tenantId);
+      console.log('[auth] Location tracking enabled:', trackingEnabled);
+
+      if (trackingEnabled) {
+        console.log('[auth] Starting location tracking setup...');
+        await startLoginTrackingIfEnabled(user.tenantId);
+        await startBackgroundTrackingIfEnabled(user.tenantId);
+      } else {
+        console.log('[auth] Location tracking disabled, skipping setup');
+      }
+
+      console.log('[auth] Post-login setup completed successfully');
+    } catch (error) {
+      console.error('[auth] Post-login setup error:', error);
+      // Don't throw error here as it's background process
     }
-    if (status >= 500) throw new Error("Server sedang bermasalah, coba lagi nanti")
-    if (error?.code === 'NETWORK_ERROR' || error?.message?.includes('Network')) {
-      throw new Error("Tidak dapat terhubung ke server")
-    }
-    if (error?.code === 'TIMEOUT' || error?.message?.includes('timeout')) {
-      throw new Error("Koneksi timeout, coba lagi")
-    }
-    throw new Error("Login gagal. Mohon periksa kembali data yang Anda masukkan")
   }
 }
 
-async function handlePostLoginSetup(kodeKantor: number, username: string, tenantName?: string): Promise<void> {
-  console.log('[auth] Starting background post-login setup...')
-  
-  try {
-    if (tenantName) {
-      await ensureTenantRow(kodeKantor, tenantName)
-    }
-    await syncOneSignalToken(kodeKantor, username)
-    console.log('[auth] Push notification setup completed')
-  } catch (e) {
-    console.warn('[auth] Push setup warning:', e)
-  }
-
-  try {
-    await handleLocationTrackingSetup(kodeKantor)
-  } catch (e) {
-    console.warn('[auth] Location tracking setup failed:', e)
-  }
-}
-
-async function handleLocationTrackingSetup(kodeKantor: number): Promise<void> {
-  try {
-    const ljk = String(kodeKantor)
-    console.log('[auth] Checking if location tracking is enabled...')
-    
-    const enabled = await isLocationTrackingEnabled(ljk)
-    console.log('[auth] Location tracking enabled:', enabled)
-    
-    if (!enabled) {
-      console.log('[auth] Location tracking disabled, skipping setup')
-      return
-    }
-
-    // Jalankan login tracking di background dengan timeout yang lebih pendek
-    console.log('[auth] Starting login location tracking...')
-    const loginTrackingPromise = startLoginTrackingIfEnabled(ljk)
-    
-    // Jalankan background tracking setup
-    console.log('[auth] Starting background location tracking...')
-    const backgroundTrackingPromise = startBackgroundTrackingIfEnabled(ljk)
-
-    // Tunggu keduanya dengan timeout
-    await Promise.allSettled([
-      Promise.race([
-        loginTrackingPromise,
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Login tracking timeout')), 5000)
-        )
-      ]),
-      Promise.race([
-        backgroundTrackingPromise,
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Background tracking timeout')), 3000)
-        )
-      ])
-    ])
-
-    console.log('[auth] Location tracking setup completed (with possible timeouts)')
-  } catch (e) {
-    console.warn('[auth] Location tracking setup error:', e)
-  }
-}
+// Export singleton instance
+export const authService = new AuthService();

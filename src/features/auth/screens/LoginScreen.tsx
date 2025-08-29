@@ -12,13 +12,11 @@ import {
   ScrollView,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
-import { useNavigation } from "@react-navigation/native"
-import FontAwesome6 from "react-native-vector-icons/FontAwesome6"
+import { Building, User, Lock, Eye, EyeOff } from "lucide-react-native"
 
 import { colors } from "../../../theme"
 import { ENV } from "../../../config/env"
 import { useLoginForm } from "../hooks/useLoginForm"
-import { useAuth } from "../../../stores/useAuth"
 
 type ApiUser = { id?: string; name?: string; email?: string }
 type SubmitOk = { ok?: true; user?: ApiUser } | { ok?: true; data?: { user?: ApiUser } }
@@ -31,8 +29,7 @@ const LoginScreen: React.FC = () => {
   const [localError, setLocalError] = React.useState<string | undefined>(undefined)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
-  const signIn = useAuth((s) => s.signIn)
-  const navigation = useNavigation()
+
 
   const officeRef = React.useRef<TextInput>(null)
   const userRef = React.useRef<TextInput>(null)
@@ -70,17 +67,7 @@ const LoginScreen: React.FC = () => {
         return
       }
 
-      // Jika berhasil, signIn untuk update auth state
-      const cand = res?.user ?? res?.data?.user ?? null
-      const user = {
-        id: cand?.id ?? "local",
-        name: cand?.name ?? f.username ?? "User",
-        email: cand?.email ?? "",
-      }
-
-      signIn(user)
-
-      // Navigation sudah dihandle di useLoginForm, tidak perlu timeout lagi
+      // Login berhasil, user sudah disimpan di auth store
       console.log('[login] Login successful, navigation handled by useLoginForm')
 
     } catch (error: any) {
@@ -123,7 +110,7 @@ const LoginScreen: React.FC = () => {
             <View style={styles.formSection}>
               <FormInput
                 ref={officeRef}
-                icon={<FontAwesome6 name="building" size={18} color={colors.primary} />}
+                icon={<Building size={18} color={colors.primary} />}
                 placeholder="Kode Kantor (6 digit)"
                 value={f.kodeKantor}
                 onChangeText={(v) => handleInputChange("officeCode", v)}
@@ -139,7 +126,7 @@ const LoginScreen: React.FC = () => {
 
               <FormInput
                 ref={userRef}
-                icon={<FontAwesome6 name="user" size={18} color={colors.primary} />}
+                icon={<User size={18} color={colors.primary} />}
                 placeholder="Nama Pengguna"
                 value={f.username}
                 onChangeText={(v) => handleInputChange("username", v)}
@@ -155,7 +142,7 @@ const LoginScreen: React.FC = () => {
 
               <FormInput
                 ref={passRef}
-                icon={<FontAwesome6 name="lock" size={18} color={colors.primary} />}
+                icon={<Lock size={18} color={colors.primary} />}
                 placeholder="Kata Sandi"
                 value={f.password}
                 onChangeText={(v) => handleInputChange("password", v)}
@@ -166,11 +153,11 @@ const LoginScreen: React.FC = () => {
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     disabled={isLoading}
                   >
-                    <FontAwesome6
-                      name={showPassword ? "eye" : "eye-slash"}
-                      size={18}
-                      color={colors.primary}
-                    />
+                    {showPassword ? (
+                      <Eye size={18} color={colors.primary} />
+                    ) : (
+                      <EyeOff size={18} color={colors.primary} />
+                    )}
                   </TouchableOpacity>
                 }
                 errorText={(f as any).errors?.password}

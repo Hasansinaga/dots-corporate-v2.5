@@ -1,66 +1,84 @@
 import { create } from 'zustand';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-type User = { id: string; name: string; email: string };
+import { User } from '../shared/types/user';
+import { authService } from '../features/auth/services/authService';
 
 type AuthState = {
   user: User | null;
   hydrated: boolean;
-  signIn: (u: User) => void;
-  signOut: () => void;
+  isLoading: boolean;
+  signIn: (user: User) => void;
+  signOut: () => Promise<void>;
   hydrate: () => Promise<void>;
+  login: (credentials: { username: string; password: string; kodeKantor: number }) => Promise<User>;
 };
 
 export const useAuth = create<AuthState>()((set) => ({
   user: null,
   hydrated: false,
+  isLoading: false,
   
-  signIn: (u) => {
-    console.log('[auth] Signing in user:', u.email);
-    set({ user: u });
-    // Optionally save to AsyncStorage for persistence
-    AsyncStorage.setItem('user', JSON.stringify(u)).catch(console.warn);
+  signIn: (user: User) => {
+    console.log('[auth] Signing in user:', user.username);
+    set({ user });
   },
   
   signOut: async () => {
     console.log('[auth] Signing out user');
-    
-    // Clear user state immediately
-    set({ user: null });
+    set({ isLoading: true });
     
     try {
-      // Clear AsyncStorage
-      await AsyncStorage.multiRemove(['user', 'authToken', 'trackingActive']);
-      console.log('[auth] AsyncStorage cleared');
+      await authService.logout();
+      set({ user: null });
+      console.log('[auth] Sign out completed');
     } catch (error) {
-      console.warn('[auth] Error clearing AsyncStorage:', error);
+      console.error('[auth] Sign out error:', error);
+      // Even if logout fails, clear local state
+      set({ user: null });
+    } finally {
+      set({ isLoading: false });
     }
-    
-    // Optional: Clear any other app state or navigate to login
-    // This might be handled by your navigation logic
   },
   
   hydrate: async () => {
     try {
       console.log('[auth] Hydrating auth state...');
-      const userJson = await AsyncStorage.getItem('user');
-      let user: User | null = null;
+      set({ isLoading: true });
       
-      if (userJson) {
-        try {
-          user = JSON.parse(userJson);
-          console.log('[auth] User loaded from storage:', user?.email);
-        } catch (parseError) {
-          console.warn('[auth] Error parsing stored user:', parseError);
-          // Clear corrupted data
-          await AsyncStorage.removeItem('user');
+      const isAuthenticated = await authService.isAuthenticated();
+      if (isAuthenticated) {
+        const user = await authService.getCurrentUser();
+        if (user) {
+          set({ user, hydrated: true });
+          console.log('[auth] User loaded from storage:', user.username);
+        } else {
+          set({ user: null, hydrated: true });
+          console.log('[auth] No user data found');
         }
+      } else {
+        set({ user: null, hydrated: true });
+        console.log('[auth] User not authenticated');
       }
-      
-      set({ user, hydrated: true });
     } catch (error) {
       console.error('[auth] Error hydrating auth state:', error);
       set({ user: null, hydrated: true });
+    } finally {
+      set({ isLoading: false });
+    }
+  },
+
+  login: async (credentials) => {
+    set({ isLoading: true });
+    
+    try {
+      const user = await authService.login(credentials);
+      set({ user });
+      console.log('[auth] Login successful:', user.username);
+      return user;
+    } catch (error) {
+      console.error('[auth] Login error:', error);
+      throw error;
+    } finally {
+      set({ isLoading: false });
     }
   },
 }));
