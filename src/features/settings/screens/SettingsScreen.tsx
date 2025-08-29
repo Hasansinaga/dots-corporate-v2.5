@@ -1,25 +1,21 @@
 import React from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { View, Text, StyleSheet, Pressable, Alert } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
 import { colors, spacing, typography } from "../../../theme";
+import { useAuth } from "../../../stores/useAuth";
 
 export default function SettingsScreen() {
   const navigation = useNavigation();
+  const { signOut } = useAuth();
 
   const doLogoutNow = async () => {
     try {
-      await AsyncStorage.multiRemove([
-        "authToken",
-        "kodeKantor",
-        "userId",
-        "trxBatchId",
-        "activeBatchData",
-      ]);
-    } catch (e) {
-      console.warn("Failed clearing storage:", e);
-    } finally {
+      await signOut();
+      console.log("[settings] Logout completed");
+    } catch (error) {
+      console.error("[settings] Logout error:", error);
+      // Force navigation reset even if logout fails
       navigation.reset({
         index: 0,
         routes: [{ name: "Login" as never }],

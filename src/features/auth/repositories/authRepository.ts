@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import API from "../../../shared/services/APIManager";
 import { jwtDecode } from 'jwt-decode';
 import { User, LoginPayload, LoginResponse, DecodedToken } from "../../../shared/types/user";
+import { stopGlobalTracking } from "../../../shared/services/tracking/globalTrackingService";
 
 export class AuthRepository {
   private readonly STORAGE_KEYS = {
@@ -51,6 +52,14 @@ export class AuthRepository {
   async logout(): Promise<void> {
     try {
       console.log("[auth] Logging out user");
+      
+      // Stop global tracking first
+      try {
+        stopGlobalTracking();
+        console.log("[auth] Global tracking stopped");
+      } catch (trackingError) {
+        console.warn("[auth] Error stopping global tracking:", trackingError);
+      }
       
       // Clear API headers
       delete API.defaults.headers.common.Authorization;

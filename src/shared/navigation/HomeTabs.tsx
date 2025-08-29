@@ -3,6 +3,7 @@ import { View, StyleSheet, TextStyle, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Home, List, QrCode, Bell, Settings } from 'lucide-react-native';
+import LocationBlocker from '../components/LocationBlocker';
 
 import HomeScreen from '../../features/home/screens/HomeScreen';
 import { ActivityScreen } from '../../features/activities';
@@ -27,18 +28,19 @@ export default function HomeTabs() {
   };
 
   return (
-    <View style={{ flex: 1 }}>
-      <Tab.Navigator
-        screenOptions={{
-          headerShown: false,
-          tabBarHideOnKeyboard: true,
-          tabBarStyle,
-          tabBarActiveTintColor: colors.text,
-          tabBarInactiveTintColor: colors.text,
-          tabBarLabelStyle: $tabBarLabel,
-          tabBarItemStyle: $tabBarItem,
-        }}
-      >
+    <LocationBlocker>
+      <View style={{ flex: 1 }}>
+        <Tab.Navigator
+          screenOptions={{
+            headerShown: false,
+            tabBarHideOnKeyboard: true,
+            tabBarStyle,
+            tabBarActiveTintColor: colors.text,
+            tabBarInactiveTintColor: colors.text,
+            tabBarLabelStyle: $tabBarLabel,
+            tabBarItemStyle: $tabBarItem,
+          }}
+        >
         <Tab.Screen
           name="DemoShowroom"
           component={HomeScreen}
@@ -98,7 +100,8 @@ export default function HomeTabs() {
           }}
         />
       </Tab.Navigator>
-    </View>
+      </View>
+    </LocationBlocker>
   );
 }
 

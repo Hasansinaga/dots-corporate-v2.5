@@ -5,6 +5,7 @@ import type { RootStackParamList } from '../../../shared/navigation';
 import { validateLogin } from '../utils/validation';
 import { useAuth } from '../../../stores/useAuth';
 
+
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export interface LoginFormState {
@@ -72,7 +73,9 @@ export function useLoginForm(): LoginFormState {
       setPassword('');
       setErrors({});
 
-      // 5. Navigate IMMEDIATELY setelah login berhasil
+
+
+      // 6. Navigate IMMEDIATELY setelah login berhasil
       navigation.reset({ 
         index: 0, 
         routes: [{ name: 'HomeTabs' as never }] 

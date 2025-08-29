@@ -4,9 +4,6 @@ import { User, LoginPayload } from "../../../shared/types/user";
 import { ensureTenantRow, syncOneSignalToken } from "../../../shared/services/pushService";
 import {
   setActiveTenant,
-  isLocationTrackingEnabled,
-  startLoginTrackingIfEnabled,
-  startBackgroundTrackingIfEnabled,
 } from "../../../shared/services/tracking/trackingService";
 
 export class AuthService {
@@ -72,18 +69,8 @@ export class AuthService {
       }
       await syncOneSignalToken(parseInt(user.tenantId), user.username);
 
-      // 2. Setup location tracking
-      console.log('[auth] Checking if location tracking is enabled...');
-      const trackingEnabled = await isLocationTrackingEnabled(user.tenantId);
-      console.log('[auth] Location tracking enabled:', trackingEnabled);
-
-      if (trackingEnabled) {
-        console.log('[auth] Starting location tracking setup...');
-        await startLoginTrackingIfEnabled(user.tenantId);
-        await startBackgroundTrackingIfEnabled(user.tenantId);
-      } else {
-        console.log('[auth] Location tracking disabled, skipping setup');
-      }
+      // 2. Tracking akan diinisialisasi di HomeScreen setelah user masuk ke aplikasi
+      console.log('[auth] Tracking will be initialized in HomeScreen');
 
       console.log('[auth] Post-login setup completed successfully');
     } catch (error) {
