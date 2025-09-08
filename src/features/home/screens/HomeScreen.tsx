@@ -23,6 +23,7 @@ export default function HomeScreen() {
   const name = user?.username ?? 'User';
   const [refreshing, setRefreshing] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [trackingInitialized, setTrackingInitialized] = useState(false);
 
   // Custom hooks
   const {
@@ -109,16 +110,16 @@ export default function HomeScreen() {
       const initialize = async () => {
         if (!mounted) return;
 
-        // Initialize global tracking if user is logged in
-        if (user?.tenantId) {
+        // Initialize global tracking only once per session
+        if (user?.tenantId && !trackingInitialized) {
           try {
-            // console.log('[home] Preparing global tracking for tenant:', user.tenantId);
+            console.log('[home] Initializing global tracking for tenant:', user.tenantId);
             
             // Debug tracking setup
             await debugTrackingSetup(user.tenantId);
             
             const trackingPrepared = await initializeGlobalTracking(user.tenantId);
-            // console.log('[home] Global tracking prepared');
+            console.log('[home] Global tracking prepared:', trackingPrepared);
             
             // Only start tracking if it was successfully prepared (i.e., tracking is enabled)
             if (trackingPrepared) {
@@ -126,23 +127,26 @@ export default function HomeScreen() {
               setTimeout(async () => {
                 if (mounted && user?.tenantId) {
                   try {
-                    // console.log('[home] Starting global tracking...');
+                    console.log('[home] Starting global tracking...');
                     await startGlobalTracking(user.tenantId);
-                    // console.log('[home] Global tracking started');
+                    console.log('[home] Global tracking started');
+                    setTrackingInitialized(true);
                   } catch (error) {
                     console.warn('[home] Failed to start global tracking:', error);
                   }
                 }
               }, 3000); // 3 second delay
             } else {
-              // console.log('[home] Tracking not enabled, skipping start tracking');
+              console.log('[home] Tracking not enabled, skipping start tracking');
+              setTrackingInitialized(true); // Mark as initialized even if not enabled
             }
           } catch (error) {
             console.warn('[home] Failed to prepare global tracking:', error);
+            setTrackingInitialized(true); // Mark as initialized to prevent retry
           }
         }
 
-        // Refresh the tracking status
+        // Always refresh the tracking status (this is lightweight)
         await refreshTrackingStatus();
       };
 
@@ -151,7 +155,7 @@ export default function HomeScreen() {
       return () => {
         mounted = false;
       };
-    }, [refreshTrackingStatus, user?.tenantId]),
+    }, [refreshTrackingStatus, user?.tenantId, trackingInitialized]),
   );
 
   // Cleanup on unmount

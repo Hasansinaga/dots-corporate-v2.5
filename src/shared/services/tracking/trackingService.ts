@@ -170,15 +170,34 @@ export async function checkTrackingEnabled(tenantId?: string): Promise<boolean> 
 export async function sendLocationData(
   tenantId: string, 
   location: LocationResult, 
-  desc: string = 'LOGIN'
+  desc?: string
 ): Promise<boolean> {
   try {
     const headers = await getAuthHeaders(tenantId);
     
+    // Determine description based on batch status
+    let finalDesc = desc;
+    if (!finalDesc) {
+      try {
+        // Try to get active batch ID from AsyncStorage
+        const activeBatchId = await AsyncStorage.getItem('activeBatchId');
+        if (activeBatchId) {
+          finalDesc = activeBatchId;
+          console.log('[tracking] Using active batch ID as desc:', activeBatchId);
+        } else {
+          finalDesc = 'LOGIN';
+          console.log('[tracking] No active batch, using LOGIN as desc');
+        }
+      } catch (error) {
+        finalDesc = 'LOGIN';
+        console.warn('[tracking] Error getting batch ID, using LOGIN as desc:', error);
+      }
+    }
+    
     const locationData: LocationHeartbeatData = {
       latitude: location.lat,
       longitude: location.lng,
-      desc,
+      desc: finalDesc,
       created_at: new Date().toISOString()
     };
 
@@ -241,7 +260,7 @@ export async function startTracking(tenantId: string): Promise<boolean> {
       async (location: LocationResult) => {
         // Callback ketika lokasi berubah - kirim ke API
         if (isTrackingActive) {
-          await sendLocationData(tenantId, location, 'Heartbeat');
+          await sendLocationData(tenantId, location); // Auto-detect batch ID
         }
       }
     );
@@ -262,7 +281,7 @@ export async function startTracking(tenantId: string): Promise<boolean> {
       // Get current location instead of last known location
       const location = await getCurrentLocation();
       if (location) {
-        await sendLocationData(tenantId, location, 'LOGIN');
+        await sendLocationData(tenantId, location); // Auto-detect batch ID
         console.log('[tracking] Background location sent:', location);
       } else {
         console.warn('[tracking] Failed to get current location for background tracking');
@@ -270,7 +289,7 @@ export async function startTracking(tenantId: string): Promise<boolean> {
         // Fallback to last known location
         const lastLocation = getLastKnownLocation();
         if (lastLocation) {
-          await sendLocationData(tenantId, lastLocation, 'LOGIN');
+          await sendLocationData(tenantId, lastLocation); // Auto-detect batch ID
           console.log('[tracking] Background location sent (fallback):', lastLocation);
         }
       }

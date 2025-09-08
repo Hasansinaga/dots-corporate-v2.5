@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TransactionBatch } from '../features/home/types/batch';
 import { batchService } from '../features/home/services/batchService';
 
@@ -23,6 +24,16 @@ export const useBatch = create<BatchState>()((set, get) => ({
   
   setCurrentBatch: (batch: TransactionBatch | null) => {
     console.log('[batch-store] Setting current batch:', batch?.id || 'null');
+    
+    // Store active batch ID in AsyncStorage for location tracking
+    if (batch?.id) {
+      AsyncStorage.setItem('activeBatchId', batch.id);
+      console.log('[batch-store] Stored active batch ID:', batch.id);
+    } else {
+      AsyncStorage.removeItem('activeBatchId');
+      console.log('[batch-store] Removed active batch ID');
+    }
+    
     set({ 
       currentBatch: batch,
       hasActiveBatch: batch !== null,
@@ -43,6 +54,15 @@ export const useBatch = create<BatchState>()((set, get) => ({
       
       const latestBatch = await batchService.getLatestActiveBatch();
       const hasActive = latestBatch !== null;
+      
+      // Store active batch ID in AsyncStorage if batch is found
+      if (latestBatch?.id) {
+        AsyncStorage.setItem('activeBatchId', latestBatch.id);
+        console.log('[batch-store] Stored active batch ID from check:', latestBatch.id);
+      } else {
+        AsyncStorage.removeItem('activeBatchId');
+        console.log('[batch-store] Removed active batch ID from check');
+      }
       
       set({ 
         currentBatch: latestBatch,
@@ -75,6 +95,11 @@ export const useBatch = create<BatchState>()((set, get) => ({
   
   clearBatch: () => {
     console.log('[batch-store] Clearing batch data');
+    
+    // Remove active batch ID from AsyncStorage
+    AsyncStorage.removeItem('activeBatchId');
+    console.log('[batch-store] Removed active batch ID from storage');
+    
     set({ 
       currentBatch: null,
       hasActiveBatch: false,
