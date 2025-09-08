@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, Alert, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, Alert, ScrollView, RefreshControl, ActivityIndicator } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../../stores/useAuth';
 import { colors, spacing, typography } from '../../../theme';
@@ -8,11 +8,12 @@ import { initializeGlobalTracking, startGlobalTracking, debugTrackingSetup } fro
 
 
 // Components
-import { HomeHeader, BatchCard, QuickActions } from '../components';
+import { HomeHeader, BatchCardWrapper, QuickActions } from '../components';
 import { AppBar } from '../../../shared/components';
 
 // Hooks
 import { useHomeTracking, useHomeBatch } from '../hooks';
+import { useQuickActionsConfig } from '../../../shared/hooks/useFeatureConfig';
 
 
 
@@ -21,6 +22,7 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const name = user?.username ?? 'User';
   const [refreshing, setRefreshing] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   // Custom hooks
   const {
@@ -49,6 +51,30 @@ export default function HomeScreen() {
     refreshBatch,
   } = useHomeBatch();
 
+  // QuickActions configuration
+  const {
+    showDaftarNasabah,
+    showSejarahBatch,
+    showPengajuanPinjaman,
+    showSimulasiKredit,
+    showUKM,
+    loadQuickActionsConfig,
+  } = useQuickActionsConfig();
+
+  // Load feature configuration on mount
+  useEffect(() => {
+    loadQuickActionsConfig();
+  }, [loadQuickActionsConfig]);
+
+  // Initial loading effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setInitialLoading(false);
+    }, 1000); // 1 second loading
+
+    return () => clearTimeout(timer);
+  }, []);
+
   // Pull to refresh handler
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -59,6 +85,7 @@ export default function HomeScreen() {
       await Promise.all([
         refreshTrackingStatus(),
         refreshBatch(),
+        loadQuickActionsConfig(),
       ]);
       
       console.log('[home] Data refreshed successfully');
@@ -67,36 +94,10 @@ export default function HomeScreen() {
     } finally {
       setRefreshing(false);
     }
-  }, [refreshTrackingStatus, refreshBatch]);
+  }, [refreshTrackingStatus, refreshBatch, loadQuickActionsConfig]);
 
 
 
-  // Navigation handlers
-  const goDaftarNasabah = useCallback(() => {
-    const parent = navigation.getParent?.();
-    if (parent) parent.navigate('DaftarNasabah');
-    else navigation.navigate('DaftarNasabah');
-  }, [navigation]);
-
-  const handleSejarahBatch = useCallback(() => {
-    // TODO: Implement sejarah batch navigation
-    // console.log('[home] Sejarah batch pressed');
-  }, []);
-
-  const handlePengajuanPinjaman = useCallback(() => {
-    // TODO: Implement pengajuan pinjaman navigation
-    // console.log('[home] Pengajuan pinjaman pressed');
-  }, []);
-
-  const handleSimulasiKredit = useCallback(() => {
-    // TODO: Implement simulasi kredit navigation
-    // console.log('[home] Simulasi kredit pressed');
-  }, []);
-
-  const handleUKM = useCallback(() => {
-    // TODO: Implement UKM navigation
-    // console.log('[home] UKM pressed');
-  }, []);
 
 
 
@@ -160,6 +161,19 @@ export default function HomeScreen() {
     };
   }, [cleanupTracking]);
 
+  // Show loading screen during initial load
+  if (initialLoading) {
+    return (
+      <SafeAreaView style={S.container} edges={['top', 'left', 'right']}>
+        <AppBar title="Dots Corporate" />
+        <View style={S.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={S.loadingText}>Memuat data...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={S.container} edges={['top', 'left', 'right']}>
       <AppBar title="Dots Corporate" />
@@ -178,52 +192,60 @@ export default function HomeScreen() {
       >
         <HomeHeader username={name} />
 
-        <BatchCard
-         batchActive={batchActive}
-         batchCode={batchCode}
-         batchId={batchId}
-         batchLoading={batchLoading}
-         isStartingBatch={isStartingBatch}
-         isStoppingBatch={isStoppingBatch}
-         totalMoney={totalMoney}
-         totalDeposit={totalDeposit}
-         locationRequired={locationRequired}
-         trackingActive={trackingActive}
-         gpsEnabled={locationAvailable}
-         gpsMonitoringActive={monitoringActive}
-         onStartBatch={startBatch}
-         onStopBatch={stopBatch}
-         onFinishTransfer={finishTransfer}
-                    onTrackingBadgePress={handleTrackingBadgePress}
-         onForceLocationCheck={async () => {
-           await refreshTrackingStatus();
-           return locationAvailable;
-         }}
-         _onGpsBadgePress={() => {
-              Alert.alert(
-                'Status GPS',
-             `GPS saat ini ${locationAvailable ? 'aktif' : 'tidak aktif'}.\n\nMonitoring GPS: ${monitoringActive ? 'Berjalan' : 'Tidak aktif'}`,
-                [
-                  {
-                    text: 'Periksa Sekarang',
-                    onPress: async () => {
-                   await refreshTrackingStatus();
-                   Alert.alert('Hasil Pemeriksaan', `GPS saat ini ${locationAvailable ? 'aktif' : 'tidak aktif'}.`);
-                    },
+        <BatchCardWrapper
+          batchActive={batchActive}
+          batchCode={batchCode}
+          batchId={batchId}
+          batchLoading={batchLoading}
+          isStartingBatch={isStartingBatch}
+          isStoppingBatch={isStoppingBatch}
+          totalMoney={totalMoney}
+          totalDeposit={totalDeposit}
+          locationRequired={locationRequired}
+          trackingActive={trackingActive}
+          gpsEnabled={locationAvailable}
+          gpsMonitoringActive={monitoringActive}
+          onStartBatch={startBatch}
+          onStopBatch={stopBatch}
+          onFinishTransfer={finishTransfer}
+          onTrackingBadgePress={handleTrackingBadgePress}
+          onForceLocationCheck={async () => {
+            await refreshTrackingStatus();
+            return locationAvailable;
+          }}
+          onGpsBadgePress={() => {
+            Alert.alert(
+              'Status GPS',
+              `GPS saat ini ${locationAvailable ? 'aktif' : 'tidak aktif'}.\n\nMonitoring GPS: ${monitoringActive ? 'Berjalan' : 'Tidak aktif'}`,
+              [
+                {
+                  text: 'Periksa Sekarang',
+                  onPress: async () => {
+                    await refreshTrackingStatus();
+                    Alert.alert('Hasil Pemeriksaan', `GPS saat ini ${locationAvailable ? 'aktif' : 'tidak aktif'}.`);
                   },
-                  { text: 'OK' },
-                ],
-              );
-            }}
-        
-      />
+                },
+                { text: 'OK' },
+              ],
+            );
+          }}
+        />
 
       <QuickActions
-        onDaftarNasabah={goDaftarNasabah}
-        onSejarahBatch={handleSejarahBatch}
-        onPengajuanPinjaman={handlePengajuanPinjaman}
-        onSimulasiKredit={handleSimulasiKredit}
-        onUKM={handleUKM}
+        showDaftarNasabah={showDaftarNasabah}
+        showSejarahBatch={showSejarahBatch}
+        showPengajuanPinjaman={showPengajuanPinjaman}
+        showSimulasiKredit={showSimulasiKredit}
+        showUKM={showUKM}
+        onDaftarNasabah={() => {
+          const parent = navigation.getParent?.();
+          if (parent) parent.navigate('DaftarNasabah');
+          else navigation.navigate('DaftarNasabah');
+        }}
+        onSejarahBatch={() => console.log('Sejarah Batch pressed')}
+        onPengajuanPinjaman={() => console.log('Pengajuan Pinjaman pressed')}
+        onSimulasiKredit={() => console.log('Simulasi Kredit pressed')}
+        onUKM={() => console.log('UKM pressed')}
       />
       </ScrollView>
     </SafeAreaView>
@@ -239,5 +261,17 @@ const S = StyleSheet.create({
     paddingHorizontal: spacing.xl, 
     paddingTop: spacing.xl, 
     gap: spacing.lg 
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  loadingText: {
+    marginTop: spacing.md,
+    color: colors.textSecondary,
+    fontSize: 16,
+    fontFamily: typography.primary.medium,
   },
 });

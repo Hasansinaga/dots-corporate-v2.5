@@ -39,6 +39,12 @@ interface QuickActionsProps {
   onPengajuanPinjaman: () => void;
   onSimulasiKredit: () => void;
   onUKM: () => void;
+  // Feature configuration
+  showDaftarNasabah?: boolean;
+  showSejarahBatch?: boolean;
+  showPengajuanPinjaman?: boolean;
+  showSimulasiKredit?: boolean;
+  showUKM?: boolean;
 }
 
 export default function QuickActions({
@@ -47,39 +53,67 @@ export default function QuickActions({
   onPengajuanPinjaman,
   onSimulasiKredit,
   onUKM,
+  showDaftarNasabah = false,
+  showSejarahBatch = false,
+  showPengajuanPinjaman = false,
+  showSimulasiKredit = false,
+  showUKM = false,
 }: QuickActionsProps) {
-  const actions: QuickActionProps[] = [
+  const allActions = [
     {
+      id: 'daftar-nasabah',
       label: 'Daftar Nasabah',
       onPress: onDaftarNasabah,
       icon: <Users size={22} color={colors.primary} />,
+      enabled: showDaftarNasabah,
     },
     {
+      id: 'sejarah-batch',
       label: 'Sejarah Batch',
       onPress: onSejarahBatch,
       icon: <History size={22} color={colors.primary} />,
+      enabled: showSejarahBatch,
     },
     {
+      id: 'pengajuan-pinjaman',
       label: 'Pengajuan\nPinjaman',
       onPress: onPengajuanPinjaman,
       icon: <FileText size={22} color={colors.primary} />,
+      enabled: showPengajuanPinjaman,
     },
     {
+      id: 'simulasi-kredit',
       label: 'Simulasi Kredit',
       onPress: onSimulasiKredit,
       icon: <Calculator size={22} color={colors.primary} />,
+      enabled: showSimulasiKredit,
     },
     {
+      id: 'ukm',
       label: 'UKM',
       onPress: onUKM,
       icon: <Briefcase size={22} color={colors.primary} />,
+      enabled: showUKM,
     },
   ];
 
+  // Filter only enabled actions
+  const enabledActions = allActions.filter(action => action.enabled);
+
+  // If no actions are enabled, don't render anything
+  if (enabledActions.length === 0) {
+    return null;
+  }
+
   return (
     <View style={S.quickRow}>
-      {actions.map((a, i) => (
-        <QuickAction key={i} {...a} />
+      {enabledActions.map((action) => (
+        <QuickAction 
+          key={action.id} 
+          label={action.label}
+          onPress={action.onPress}
+          icon={action.icon}
+        />
       ))}
     </View>
   );
