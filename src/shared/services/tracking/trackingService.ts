@@ -257,6 +257,13 @@ export async function sendLocationData(
 // Start tracking dengan location monitoring
 export async function startTracking(tenantId: string): Promise<boolean> {
   try {
+    // First check if tracking is enabled
+    const trackingEnabled = await checkTrackingEnabled(tenantId);
+    if (!trackingEnabled) {
+      console.log('[tracking] Cannot start tracking - not enabled for tenant:', tenantId);
+      return false;
+    }
+
     // Check permissions dan GPS
     const locationStatus = await getCurrentLocationStatus();
     if (!locationStatus.canGetLocation) {

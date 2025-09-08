@@ -55,6 +55,13 @@ export async function startGlobalTracking(tenantId: string): Promise<boolean> {
     return false;
   }
 
+  // Double-check that tracking is enabled before starting
+  const trackingEnabled = await checkTrackingEnabled(tenantId);
+  if (!trackingEnabled) {
+    console.log('[global-tracking] Cannot start - tracking not enabled for tenant:', tenantId);
+    return false;
+  }
+
   try {
     console.log('[global-tracking] Starting actual tracking...');
     
@@ -155,11 +162,18 @@ export function isGlobalTrackingActive(): boolean {
 // Get global tracking status
 export async function getGlobalTrackingStatus() {
   const trackingActive = isTracking();
-  const locationStatus = await getCurrentLocationStatus();
+  
+  // Only check location status if tracking is actually active
+  // This prevents unnecessary GPS checks when tracking is disabled
+  let locationAvailable = false;
+  if (trackingActive) {
+    const locationStatus = await getCurrentLocationStatus();
+    locationAvailable = locationStatus.canGetLocation;
+  }
   
   return {
     trackingActive,
-    locationAvailable: locationStatus.canGetLocation,
+    locationAvailable,
     initialized: isGlobalTrackingInitialized,
     monitoringActive: locationMonitoringActive,
   };
@@ -190,6 +204,13 @@ export async function restartGlobalTracking(): Promise<boolean> {
   const tenantId = await AsyncStorage.getItem('tenantId');
   if (!tenantId) {
     console.warn('[global-tracking] No tenant ID found for restart');
+    return false;
+  }
+  
+  // Check if tracking is enabled before attempting restart
+  const trackingEnabled = await checkTrackingEnabled(tenantId);
+  if (!trackingEnabled) {
+    console.log('[global-tracking] Cannot restart - tracking not enabled for tenant:', tenantId);
     return false;
   }
   

@@ -88,21 +88,26 @@ export default function HomeScreen() {
             // Debug tracking setup
             await debugTrackingSetup(user.tenantId);
             
-            await initializeGlobalTracking(user.tenantId);
+            const trackingPrepared = await initializeGlobalTracking(user.tenantId);
             console.log('[home] Global tracking prepared');
             
-            // Start tracking after a delay to let user settle in
-            setTimeout(async () => {
-              if (mounted && user?.tenantId) {
-                try {
-                  console.log('[home] Starting global tracking...');
-                  await startGlobalTracking(user.tenantId);
-                  console.log('[home] Global tracking started');
-                } catch (error) {
-                  console.warn('[home] Failed to start global tracking:', error);
+            // Only start tracking if it was successfully prepared (i.e., tracking is enabled)
+            if (trackingPrepared) {
+              // Start tracking after a delay to let user settle in
+              setTimeout(async () => {
+                if (mounted && user?.tenantId) {
+                  try {
+                    console.log('[home] Starting global tracking...');
+                    await startGlobalTracking(user.tenantId);
+                    console.log('[home] Global tracking started');
+                  } catch (error) {
+                    console.warn('[home] Failed to start global tracking:', error);
+                  }
                 }
-              }
-            }, 3000); // 3 second delay
+              }, 3000); // 3 second delay
+            } else {
+              console.log('[home] Tracking not enabled, skipping start tracking');
+            }
           } catch (error) {
             console.warn('[home] Failed to prepare global tracking:', error);
           }

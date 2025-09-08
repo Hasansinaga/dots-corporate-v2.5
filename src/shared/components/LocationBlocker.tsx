@@ -4,6 +4,8 @@ import { colors, spacing, typography } from '../../theme';
 import { LocationStatus } from '../services/tracking/types';
 import { showLocationRequiredAlert } from '../services/tracking/locationPermissions';
 import { getCurrentLocationStatus } from '../services/tracking/locationMonitor';
+import { checkTrackingEnabled } from '../services/tracking/trackingService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface LocationBlockerProps {
   children: React.ReactNode;
@@ -13,9 +15,51 @@ interface LocationBlockerProps {
 export default function LocationBlocker({ children, onLocationStatusChange }: LocationBlockerProps) {
   const [locationStatus, setLocationStatus] = useState<LocationStatus | null>(null);
   const [isChecking, setIsChecking] = useState(true);
+  const [trackingEnabled, setTrackingEnabled] = useState<boolean | null>(null);
 
   const checkLocationStatus = useCallback(async () => {
     try {
+      // First check if tracking is enabled
+      const tenantId = await AsyncStorage.getItem('tenantId');
+      if (!tenantId) {
+        console.log('[LocationBlocker] No tenant ID found, skipping location check');
+        // Set tracking as disabled and allow app to continue
+        setTrackingEnabled(false);
+        const dummyStatus: LocationStatus = {
+          isLocationEnabled: true,
+          isGpsEnabled: true,
+          hasLocationPermission: true,
+          canGetLocation: true,
+          lastKnownLocation: null,
+          lastLocationTime: 0,
+        };
+        setLocationStatus(dummyStatus);
+        setIsChecking(false);
+        onLocationStatusChange?.(dummyStatus);
+        return;
+      }
+
+      const trackingEnabled = await checkTrackingEnabled(tenantId);
+      setTrackingEnabled(trackingEnabled);
+      
+      if (!trackingEnabled) {
+        console.log('[LocationBlocker] Tracking disabled, skipping location check');
+        // Set a dummy status that allows the app to continue
+        const dummyStatus: LocationStatus = {
+          isLocationEnabled: true,
+          isGpsEnabled: true,
+          hasLocationPermission: true,
+          canGetLocation: true,
+          lastKnownLocation: null,
+          lastLocationTime: 0,
+        };
+        setLocationStatus(dummyStatus);
+        setIsChecking(false);
+        onLocationStatusChange?.(dummyStatus);
+        return;
+      }
+
+      // Only check location if tracking is enabled
       const status = await getCurrentLocationStatus();
       setLocationStatus(status);
       setIsChecking(false);
@@ -76,8 +120,15 @@ export default function LocationBlocker({ children, onLocationStatusChange }: Lo
     );
   }
 
-  // Show blocker if location is not available
-  if (!locationStatus?.canGetLocation) {
+  // Debug logging
+  console.log('[LocationBlocker] Render check:', {
+    canGetLocation: locationStatus?.canGetLocation,
+    trackingEnabled,
+    isChecking
+  });
+
+  // Show blocker if location is not available AND tracking is enabled
+  if (!locationStatus?.canGetLocation && trackingEnabled === true) {
     return (
       <View style={styles.container}>
         <View style={styles.content}>
