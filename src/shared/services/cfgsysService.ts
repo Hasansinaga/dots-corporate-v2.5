@@ -2,14 +2,14 @@ import API from '../services/APIManager';
 import { CompanyCfgsys, CompanyCfgsysResponse, FeatureConfig, FeatureConfigs } from '../types/cfgsys';
 
 class CfgsysService {
-  private baseUrl = '/api/core/company-cfgsys';
+  private baseUrl = '/core/company-cfgsys';
 
   /**
    * Get company configuration by ljk_code and code
    */
   async getCompanyConfig(ljkCode: string, code: string): Promise<CompanyCfgsys | null> {
     try {
-      console.log('[cfgsys] Getting config:', { ljkCode, code });
+      console.log('[cfgsys] Getting config:', { ljkCode, code, endpoint: this.baseUrl });
       const response = await API.get<CompanyCfgsysResponse>(this.baseUrl, {
         params: {
           ljk_code: ljkCode,
@@ -17,6 +17,7 @@ class CfgsysService {
         },
       });
 
+      console.log('[cfgsys] API response:', response.data);
       const configs = response.data;
       if (configs && configs.length > 0) {
         console.log('[cfgsys] Config found:', configs[0]);
@@ -26,7 +27,14 @@ class CfgsysService {
       console.log('[cfgsys] No config found for:', { ljkCode, code });
       return null;
     } catch (error: any) {
-      console.error('[cfgsys] Error getting config:', error.message);
+      console.error('[cfgsys] Error getting config:', {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        endpoint: this.baseUrl,
+        ljkCode,
+        code
+      });
       throw new Error(`Failed to get company config: ${error.message}`);
     }
   }

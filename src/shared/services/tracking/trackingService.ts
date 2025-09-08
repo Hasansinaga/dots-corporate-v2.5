@@ -3,6 +3,8 @@ import { Platform } from 'react-native';
 import Geolocation from 'react-native-geolocation-service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import API from '../APIManager';
+import { cfgsysService } from '../cfgsysService';
+import { getTenantIdWithFallback } from '../../utils/tenantUtils';
 import { 
   LocationResult, 
   CompanyConfigResponse, 
@@ -135,90 +137,31 @@ export async function startBackgroundTrackingIfEnabled(tenantId: string): Promis
 }
 
 // Check apakah tracking diaktifkan dari API
-export async function checkTrackingEnabled(tenantId: string): Promise<boolean> {
+export async function checkTrackingEnabled(tenantId?: string): Promise<boolean> {
   try {
-    console.log('[tracking] Checking tracking config for tenant:', tenantId);
+    // Use provided tenantId, activeTenantId, or get from storage
+    const targetTenantId = tenantId || activeTenantId || await getTenantIdWithFallback();
+    console.log('[tracking] Checking tracking config for tenant:', targetTenantId);
     
-    // Use activeTenantId if available, otherwise use provided tenantId
-    const targetTenantId = activeTenantId || tenantId;
-    const headers = await getAuthHeaders(targetTenantId);
+    // Use cfgsysService to get configuration
+    const config = await cfgsysService.getCompanyConfig(targetTenantId, CONFIG_KEY);
     
-    console.log('[tracking] Making API request with params:', {
-      ljk_code: targetTenantId,
-      code: CONFIG_KEY
-    });
-    
-    // Log base URL for debugging
-    console.log('[tracking] API base URL:', API.defaults.baseURL);
-    
-    // Try multiple endpoints
-    const endpoints = [
-      '/core/company-cfgsys', 
-    ];
-    
-    let lastError: any = null;
-    
-    for (const endpoint of endpoints) {
-      try {
-        console.log(`[tracking] Trying endpoint: ${endpoint}`);
-        
-        const response = await API.get(endpoint, {
-          params: { 
-            ljk_code: targetTenantId, 
-            code: CONFIG_KEY 
-          },
-          headers,
-          timeout: 10000
-        });
-
-        const data = response.data;
-        console.log('[tracking] Config response:', JSON.stringify(data, null, 2));
-
-        if (Array.isArray(data) && data.length > 0) {
-          const config = data.find((item: CompanyConfigResponse) => 
-            item.code === CONFIG_KEY && item.ljk_code === targetTenantId
-          );
-
-          if (config) {
-            // Check if numvalue1 OR numvalue2 equals 1
-            const isEnabled = config.numvalue1 === 1 || config.numvalue2 === 1;
-            console.log('[tracking] Tracking config found:', {
-              code: config.code,
-              numvalue1: config.numvalue1,
-              numvalue2: config.numvalue2,
-              isEnabled: isEnabled
-            });
-            return isEnabled;
-          } else {
-            console.log(`[tracking] Endpoint ${endpoint} returned data but MBCORP_LOCATION_TRACK config not found`);
-            console.log('[tracking] Available configs:', data.map((item: any) => ({ code: item.code, numvalue1: item.numvalue1, numvalue2: item.numvalue2 })));
-          }
-        } else {
-          console.log(`[tracking] Endpoint ${endpoint} returned empty data`);
-        }
-      } catch (error: any) {
-        console.warn(`[tracking] Endpoint ${endpoint} failed:`, error.message);
-        lastError = error;
-        continue;
-      }
+    if (config) {
+      // Check if numvalue1 OR numvalue2 equals 1
+      const isEnabled = config.numvalue1 === 1 || config.numvalue2 === 1;
+      console.log('[tracking] Tracking config found:', {
+        code: config.code,
+        numvalue1: config.numvalue1,
+        numvalue2: config.numvalue2,
+        isEnabled: isEnabled
+      });
+      return isEnabled;
+    } else {
+      console.log('[tracking] No location tracking config found for tenant:', targetTenantId);
+      return false;
     }
-
-    // If all endpoints fail, return false
-    console.warn('[tracking] All endpoints failed, returning false');
-    if (lastError?.response) {
-      console.error('[tracking] Last error response status:', lastError.response.status);
-      console.error('[tracking] Last error response data:', lastError.response.data);
-    }
-    
-    return false;
-    
   } catch (error: any) {
     console.error('[tracking] Error checking tracking config:', error.message);
-    if (error.response) {
-      console.error('[tracking] Response status:', error.response.status);
-      console.error('[tracking] Response data:', error.response.data);
-    }
-    
     return false;
   }
 }

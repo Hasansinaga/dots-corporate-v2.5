@@ -90,7 +90,7 @@ Hook utama untuk mengelola konfigurasi fitur.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `ljkCode` | `string` | `'600001'` | Kode LJK untuk identifikasi perusahaan |
+| `ljkCode` | `string` | `undefined` | Kode LJK untuk identifikasi perusahaan (auto-detect dari AsyncStorage jika tidak disediakan) |
 | `autoLoad` | `boolean` | `false` | Otomatis load konfigurasi saat mount |
 
 #### Returns
@@ -120,6 +120,35 @@ Hook khusus untuk konfigurasi QuickActions.
 | `loadQuickActionsConfig` | `() => Promise<void>` | Function untuk load konfigurasi QuickActions |
 | `isLoading` | `boolean` | Status loading |
 | `error` | `string \| null` | Error message |
+
+### useLocationConfig(options)
+
+Hook untuk mengelola konfigurasi location tracking.
+
+#### Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `ljkCode` | `string` | `undefined` | Kode LJK untuk identifikasi perusahaan (auto-detect dari AsyncStorage jika tidak disediakan) |
+| `autoLoad` | `boolean` | `true` | Otomatis load konfigurasi saat mount |
+
+#### Returns
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `trackingActive` | `boolean` | Status tracking aktif/tidak |
+| `locationRequired` | `boolean` | Apakah lokasi diperlukan |
+| `locationAvailable` | `boolean` | Apakah lokasi tersedia |
+| `monitoringActive` | `boolean` | Status monitoring aktif |
+| `isLocationTrackingEnabled` | `boolean` | Status konfigurasi tracking dari API |
+| `isLoading` | `boolean` | Status loading |
+| `error` | `string \| null` | Error message |
+| `refreshTrackingStatus` | `() => Promise<any>` | Function untuk refresh status tracking |
+| `handleTrackingBadgePress` | `() => Promise<void>` | Function untuk handle badge press |
+| `openLocationSettings` | `() => Promise<void>` | Function untuk buka pengaturan lokasi |
+| `loadLocationConfig` | `() => Promise<void>` | Function untuk load konfigurasi |
+| `refreshLocationConfig` | `() => Promise<void>` | Function untuk refresh konfigurasi |
+| `cleanup` | `() => void` | Function untuk cleanup |
 
 ## 💡 Examples
 
@@ -302,6 +331,85 @@ function QuickActionsComponent() {
     </View>
   );
 }
+```
+
+### Example 6: Location Tracking Configuration
+
+```typescript
+import React from 'react';
+import { View, Text, Button } from 'react-native';
+import { useLocationConfig } from '../../../shared/hooks/useLocationConfig';
+
+function LocationTrackingComponent() {
+  const {
+    trackingActive,
+    locationRequired,
+    locationAvailable,
+    monitoringActive,
+    isLocationTrackingEnabled,
+    isLoading,
+    error,
+    handleTrackingBadgePress,
+    refreshLocationConfig,
+  } = useLocationConfig({
+    ljkCode: '600001',
+    autoLoad: true,
+  });
+
+  if (isLoading) {
+    return <Text>Loading location config...</Text>;
+  }
+
+  if (error) {
+    return (
+      <View>
+        <Text>Error: {error}</Text>
+        <Button title="Retry" onPress={refreshLocationConfig} />
+      </View>
+    );
+  }
+
+  return (
+    <View>
+      <Text>Location Tracking Status:</Text>
+      <Text>Config Enabled: {isLocationTrackingEnabled ? 'Yes' : 'No'}</Text>
+      <Text>Tracking Active: {trackingActive ? 'Yes' : 'No'}</Text>
+      <Text>Location Available: {locationAvailable ? 'Yes' : 'No'}</Text>
+      <Text>Monitoring Active: {monitoringActive ? 'Yes' : 'No'}</Text>
+      
+      <Button 
+        title="Toggle Tracking" 
+        onPress={handleTrackingBadgePress}
+      />
+    </View>
+  );
+}
+```
+
+## 🏢 Tenant ID Management
+
+Sistem ini secara otomatis menggunakan `KodeKantor` yang disimpan saat login sebagai LJK code untuk API calls.
+
+### Auto-Detection
+
+```typescript
+// ✅ Recommended - Auto-detect dari AsyncStorage
+const config = useFeatureConfig();
+
+// ✅ Manual override jika diperlukan
+const config = useFeatureConfig({ ljkCode: '600002' });
+```
+
+### Tenant Utils
+
+```typescript
+import { getTenantId, getTenantIdWithFallback } from '../utils/tenantUtils';
+
+// Get tenant ID dari AsyncStorage
+const tenantId = await getTenantId();
+
+// Get dengan fallback
+const tenantId = await getTenantIdWithFallback('600001');
 ```
 
 ## 🎯 Best Practices

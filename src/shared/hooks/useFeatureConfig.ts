@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { cfgsysService } from '../services/cfgsysService';
 import { FeatureConfigs } from '../types/cfgsys';
+import { getTenantIdWithFallback } from '../utils/tenantUtils';
 
 interface UseFeatureConfigOptions {
   ljkCode?: string;
@@ -17,12 +18,13 @@ interface UseFeatureConfigReturn {
 }
 
 export function useFeatureConfig(options: UseFeatureConfigOptions = {}): UseFeatureConfigReturn {
-  const { ljkCode = '600001', autoLoad = false } = options;
+  const { ljkCode, autoLoad = false } = options;
   
   const [configs, setConfigs] = useState<FeatureConfigs>({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastLoadedCodes, setLastLoadedCodes] = useState<string[]>([]);
+  const [currentLjkCode, setCurrentLjkCode] = useState<string>('');
 
   const loadConfigs = useCallback(async (codes: string[]) => {
     if (codes.length === 0) return;
@@ -31,8 +33,12 @@ export function useFeatureConfig(options: UseFeatureConfigOptions = {}): UseFeat
     setError(null);
     
     try {
-      console.log('[feature-config] Loading configs for codes:', codes);
-      const loadedConfigs = await cfgsysService.getCompanyConfigs(ljkCode, codes);
+      // Get tenant ID from storage or use provided ljkCode
+      const tenantId = ljkCode || await getTenantIdWithFallback();
+      setCurrentLjkCode(tenantId);
+      
+      console.log('[feature-config] Loading configs for codes:', codes, 'with tenant:', tenantId);
+      const loadedConfigs = await cfgsysService.getCompanyConfigs(tenantId, codes);
       setConfigs(loadedConfigs);
       setLastLoadedCodes(codes);
       console.log('[feature-config] Configs loaded successfully:', loadedConfigs);
@@ -84,7 +90,7 @@ export function useFeatureConfig(options: UseFeatureConfigOptions = {}): UseFeat
 // Hook khusus untuk QuickActions
 export function useQuickActionsConfig() {
   const { configs, isLoading, error, isFeatureEnabled, loadConfigs } = useFeatureConfig({
-    ljkCode: '600001',
+    // ljkCode will be auto-detected from AsyncStorage
   });
 
   const loadQuickActionsConfig = useCallback(async () => {
