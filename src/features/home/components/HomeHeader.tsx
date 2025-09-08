@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { colors, spacing, typography } from '../../../theme';
 
@@ -32,7 +32,7 @@ const indoDate = (d: Date) => {
   const pad = (x: number) => String(x).padStart(2, '0');
   return `${hari}, ${d.getDate()} ${bulan} ${d.getFullYear()} | ${pad(
     d.getHours(),
-  )}:${pad(d.getMinutes())}`;
+  )}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 };
 
 interface HomeHeaderProps {
@@ -40,9 +40,19 @@ interface HomeHeaderProps {
 }
 
 export default function HomeHeader({ username }: HomeHeaderProps) {
-  const now = useMemo(() => new Date(), []);
-  const greetText = `${greet(now.getHours())}, ${username}`;
-  const dateText = indoDate(now);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update time every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const greetText = `${greet(currentTime.getHours())}, ${username}`;
+  const dateText = indoDate(currentTime);
 
   return (
     <View style={S.header}>

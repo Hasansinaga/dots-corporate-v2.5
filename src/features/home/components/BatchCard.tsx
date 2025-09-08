@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable, Alert } from 'react-native';
 import { colors, spacing, typography } from '../../../theme';
+import { Loading } from '../../../shared/components';
 
 const formatIDR = (n: number) =>
   'Rp ' + (Math.floor(n) + '').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
@@ -8,6 +9,10 @@ const formatIDR = (n: number) =>
 interface BatchCardProps {
   batchActive: boolean;
   batchCode: string | null;
+  batchId?: string | null;
+  batchLoading?: boolean;
+  isStartingBatch?: boolean;
+  isStoppingBatch?: boolean;
   totalMoney: number;
   totalDeposit: number;
   locationRequired: boolean;
@@ -25,6 +30,10 @@ interface BatchCardProps {
 export default function BatchCard({
   batchActive,
   batchCode,
+  batchId,
+  batchLoading = false,
+  isStartingBatch = false,
+  isStoppingBatch = false,
   totalMoney,
   totalDeposit,
   locationRequired,
@@ -57,15 +66,24 @@ export default function BatchCard({
     <View style={S.card}>
       <View style={S.row}>
         <Text style={S.cardLabel}>Batch</Text>
-        <Text style={S.cardValue}>{batchActive ? batchCode : '—'}</Text>
+        <Text style={S.cardValue}>
+          {batchLoading ? 'Memeriksa...' : batchActive ? batchCode : '—'}
+        </Text>
       </View>
 
       <View style={[S.row, { marginTop: 6 }]}>
         <Text style={S.cardLabel}>Status</Text>
         <Text
-          style={[S.badge, batchActive ? S.badgeActive : S.badgeInactive]}
+          style={[
+            S.badge, 
+            batchLoading 
+              ? S.badgeWarning 
+              : batchActive 
+                ? S.badgeActive 
+                : S.badgeInactive
+          ]}
         >
-          {batchActive ? 'Active' : 'Inactive'}
+          {batchLoading ? 'Memeriksa...' : batchActive ? 'Active' : 'Inactive'}
         </Text>
       </View>
 
@@ -131,11 +149,21 @@ export default function BatchCard({
 
       {!batchActive ? (
         <Pressable
-          style={S.cta}
+          style={[S.cta, isStartingBatch && S.ctaDisabled]}
           onPress={onStartBatch}
+          disabled={isStartingBatch}
           android_ripple={{ color: 'rgba(255,255,255,0.15)' }}
         >
-          <Text style={S.ctaText}>Mulai Batch</Text>
+          {isStartingBatch ? (
+            <Loading 
+              size="small" 
+              color="#fff" 
+              text="Memulai..." 
+              style={{ flexDirection: 'row' }}
+            />
+          ) : (
+            <Text style={S.ctaText}>Mulai Batch</Text>
+          )}
         </Pressable>
       ) : (
         <View style={S.ctaBar}>
@@ -144,15 +172,25 @@ export default function BatchCard({
             onPress={onFinishTransfer}
             android_ripple={{ color: 'rgba(0,0,0,0.06)' }}
           >
-            <Text style={S.ctaGhostText}>Selesai transfer</Text>
+            <Text style={S.ctaGhostText}>Sejarah Batch</Text>
           </Pressable>
           <View style={S.dividerH} />
           <Pressable
-            style={S.ctaHalf}
+            style={[S.ctaHalf, isStoppingBatch && S.ctaDisabled]}
             onPress={onStopBatch}
+            disabled={isStoppingBatch}
             android_ripple={{ color: 'rgba(255,255,255,0.15)' }}
           >
-            <Text style={S.ctaText}>Hentikan batch</Text>
+            {isStoppingBatch ? (
+              <Loading 
+                size="small" 
+                color="#fff" 
+                text="Menghentikan..." 
+                style={{ flexDirection: 'row' }}
+              />
+            ) : (
+              <Text style={S.ctaText}>Hentikan batch</Text>
+            )}
           </Pressable>
         </View>
       )}
@@ -243,6 +281,10 @@ const S = StyleSheet.create({
     paddingVertical: spacing.md,
     alignItems: 'center',
     elevation: 2,
+  },
+  ctaDisabled: {
+    backgroundColor: colors.textSecondary,
+    opacity: 0.7,
   },
   ctaText: {
     color: colors.background,

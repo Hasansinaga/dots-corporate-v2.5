@@ -87,7 +87,7 @@ export default function QuickActions({
 
 const S = StyleSheet.create({
   quickRow: {
-    marginTop: spacing.xs,
+    marginTop: spacing.xl,
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',

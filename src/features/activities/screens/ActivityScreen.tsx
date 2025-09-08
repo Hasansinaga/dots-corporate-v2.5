@@ -3,9 +3,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { View, Text, StyleSheet } from "react-native";
 import { colors, spacing, typography } from "../../../theme";
 
+import { AppBar } from '../../../shared/components';
+
 export default function ActivityScreen() {
   return (
     <SafeAreaView style={S.container} edges={["top", "left", "right"]}>
+      <AppBar title="Dots Corporate Aktivitas" />
+
       <View style={S.content}>
         <Text style={S.title}>Aktivitas</Text>
         <Text style={S.subtitle}>Daftar aktivitas pengguna akan tampil di sini.</Text>

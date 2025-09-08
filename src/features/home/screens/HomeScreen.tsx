@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, Alert } from 'react-native';
+import { View, Text, StyleSheet, Alert, ScrollView, RefreshControl } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../../stores/useAuth';
 import { colors, spacing, typography } from '../../../theme';
@@ -9,6 +9,7 @@ import { initializeGlobalTracking, startGlobalTracking, debugTrackingSetup } fro
 
 // Components
 import { HomeHeader, BatchCard, QuickActions } from '../components';
+import { AppBar } from '../../../shared/components';
 
 // Hooks
 import { useHomeTracking, useHomeBatch } from '../hooks';
@@ -19,6 +20,7 @@ export default function HomeScreen() {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
   const name = user?.username ?? 'User';
+  const [refreshing, setRefreshing] = useState(false);
 
   // Custom hooks
   const {
@@ -34,12 +36,38 @@ export default function HomeScreen() {
   const {
     batchActive,
     batchCode,
+    batchId,
+    batchLoading,
+    currentBatch,
     totalMoney,
     totalDeposit,
+    isStartingBatch,
+    isStoppingBatch,
     startBatch,
     stopBatch,
     finishTransfer,
+    refreshBatch,
   } = useHomeBatch();
+
+  // Pull to refresh handler
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      console.log('[home] Refreshing data...');
+      
+      // Refresh both tracking and batch data
+      await Promise.all([
+        refreshTrackingStatus(),
+        refreshBatch(),
+      ]);
+      
+      console.log('[home] Data refreshed successfully');
+    } catch (error) {
+      console.error('[home] Error refreshing data:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshTrackingStatus, refreshBatch]);
 
 
 
@@ -52,22 +80,22 @@ export default function HomeScreen() {
 
   const handleSejarahBatch = useCallback(() => {
     // TODO: Implement sejarah batch navigation
-    console.log('[home] Sejarah batch pressed');
+    // console.log('[home] Sejarah batch pressed');
   }, []);
 
   const handlePengajuanPinjaman = useCallback(() => {
     // TODO: Implement pengajuan pinjaman navigation
-    console.log('[home] Pengajuan pinjaman pressed');
+    // console.log('[home] Pengajuan pinjaman pressed');
   }, []);
 
   const handleSimulasiKredit = useCallback(() => {
     // TODO: Implement simulasi kredit navigation
-    console.log('[home] Simulasi kredit pressed');
+    // console.log('[home] Simulasi kredit pressed');
   }, []);
 
   const handleUKM = useCallback(() => {
     // TODO: Implement UKM navigation
-    console.log('[home] UKM pressed');
+    // console.log('[home] UKM pressed');
   }, []);
 
 
@@ -83,13 +111,13 @@ export default function HomeScreen() {
         // Initialize global tracking if user is logged in
         if (user?.tenantId) {
           try {
-            console.log('[home] Preparing global tracking for tenant:', user.tenantId);
+            // console.log('[home] Preparing global tracking for tenant:', user.tenantId);
             
             // Debug tracking setup
             await debugTrackingSetup(user.tenantId);
             
             const trackingPrepared = await initializeGlobalTracking(user.tenantId);
-            console.log('[home] Global tracking prepared');
+            // console.log('[home] Global tracking prepared');
             
             // Only start tracking if it was successfully prepared (i.e., tracking is enabled)
             if (trackingPrepared) {
@@ -97,16 +125,16 @@ export default function HomeScreen() {
               setTimeout(async () => {
                 if (mounted && user?.tenantId) {
                   try {
-                    console.log('[home] Starting global tracking...');
+                    // console.log('[home] Starting global tracking...');
                     await startGlobalTracking(user.tenantId);
-                    console.log('[home] Global tracking started');
+                    // console.log('[home] Global tracking started');
                   } catch (error) {
                     console.warn('[home] Failed to start global tracking:', error);
                   }
                 }
               }, 3000); // 3 second delay
             } else {
-              console.log('[home] Tracking not enabled, skipping start tracking');
+              // console.log('[home] Tracking not enabled, skipping start tracking');
             }
           } catch (error) {
             console.warn('[home] Failed to prepare global tracking:', error);
@@ -134,57 +162,70 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={S.container} edges={['top', 'left', 'right']}>
-      <View style={S.appbar}>
-        <Text style={S.appbarTitle}>BPR Dev</Text>
-      </View>
+      <AppBar title="Dots Corporate" />
 
-      <View style={S.body}>
+      <ScrollView 
+        style={S.body}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]} // Android
+            tintColor={colors.primary} // iOS
+          />
+        }
+        showsVerticalScrollIndicator={false}
+      >
         <HomeHeader username={name} />
 
-          <BatchCard
-           batchActive={batchActive}
-           batchCode={batchCode}
-           totalMoney={totalMoney}
-           totalDeposit={totalDeposit}
-           locationRequired={locationRequired}
-           trackingActive={trackingActive}
-           gpsEnabled={locationAvailable}
-           gpsMonitoringActive={monitoringActive}
-           onStartBatch={startBatch}
-           onStopBatch={stopBatch}
-           onFinishTransfer={finishTransfer}
-                      onTrackingBadgePress={handleTrackingBadgePress}
-           onForceLocationCheck={async () => {
-             await refreshTrackingStatus();
-             return locationAvailable;
-           }}
-           _onGpsBadgePress={() => {
-                Alert.alert(
-                  'Status GPS',
-               `GPS saat ini ${locationAvailable ? 'aktif' : 'tidak aktif'}.\n\nMonitoring GPS: ${monitoringActive ? 'Berjalan' : 'Tidak aktif'}`,
-                  [
-                    {
-                      text: 'Periksa Sekarang',
-                      onPress: async () => {
-                     await refreshTrackingStatus();
-                     Alert.alert('Hasil Pemeriksaan', `GPS saat ini ${locationAvailable ? 'aktif' : 'tidak aktif'}.`);
-                      },
+        <BatchCard
+         batchActive={batchActive}
+         batchCode={batchCode}
+         batchId={batchId}
+         batchLoading={batchLoading}
+         isStartingBatch={isStartingBatch}
+         isStoppingBatch={isStoppingBatch}
+         totalMoney={totalMoney}
+         totalDeposit={totalDeposit}
+         locationRequired={locationRequired}
+         trackingActive={trackingActive}
+         gpsEnabled={locationAvailable}
+         gpsMonitoringActive={monitoringActive}
+         onStartBatch={startBatch}
+         onStopBatch={stopBatch}
+         onFinishTransfer={finishTransfer}
+                    onTrackingBadgePress={handleTrackingBadgePress}
+         onForceLocationCheck={async () => {
+           await refreshTrackingStatus();
+           return locationAvailable;
+         }}
+         _onGpsBadgePress={() => {
+              Alert.alert(
+                'Status GPS',
+             `GPS saat ini ${locationAvailable ? 'aktif' : 'tidak aktif'}.\n\nMonitoring GPS: ${monitoringActive ? 'Berjalan' : 'Tidak aktif'}`,
+                [
+                  {
+                    text: 'Periksa Sekarang',
+                    onPress: async () => {
+                   await refreshTrackingStatus();
+                   Alert.alert('Hasil Pemeriksaan', `GPS saat ini ${locationAvailable ? 'aktif' : 'tidak aktif'}.`);
                     },
-                    { text: 'OK' },
-                  ],
-                );
-              }}
-          
-        />
+                  },
+                  { text: 'OK' },
+                ],
+              );
+            }}
+        
+      />
 
-        <QuickActions
-          onDaftarNasabah={goDaftarNasabah}
-          onSejarahBatch={handleSejarahBatch}
-          onPengajuanPinjaman={handlePengajuanPinjaman}
-          onSimulasiKredit={handleSimulasiKredit}
-          onUKM={handleUKM}
-        />
-      </View>
+      <QuickActions
+        onDaftarNasabah={goDaftarNasabah}
+        onSejarahBatch={handleSejarahBatch}
+        onPengajuanPinjaman={handlePengajuanPinjaman}
+        onSimulasiKredit={handleSimulasiKredit}
+        onUKM={handleUKM}
+      />
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -193,19 +234,6 @@ export default function HomeScreen() {
 
 const S = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  appbar: {
-    height: 56,
-    paddingHorizontal: spacing.xl,
-    backgroundColor: colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  appbarTitle: {
-    color: colors.background,
-    fontSize: 18,
-    letterSpacing: 0.3,
-    fontFamily: typography.primary.bold,
-  },
   body: { 
     flex: 1,
     paddingHorizontal: spacing.xl, 
