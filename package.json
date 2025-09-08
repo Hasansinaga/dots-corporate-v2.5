@@ -7,7 +7,12 @@
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
-    "test": "jest"
+    "test": "jest",
+    "generate-icons": "node scripts/generate-icons.js",
+    "generate-notification-icons": "node scripts/generate-notification-icons.js",
+    "generate-all-icons": "npm run generate-icons && npm run generate-notification-icons",
+    "generate-icons-with-padding": "node scripts/generate-icons-with-padding.js",
+    "clean": "npx react-native clean"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",
@@ -32,6 +37,7 @@
     "react-native-url-polyfill": "^2.0.0",
     "react-native-worklets": "^0.5.0",
     "react-native-worklets-core": "^1.6.2",
+    "sharp": "^0.34.3",
     "zustand": "^5.0.8"
   },
   "devDependencies": {

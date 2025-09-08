@@ -90,7 +90,7 @@ public class LocationTrackingModule extends ReactContextBaseJavaModule {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(reactContext, CHANNEL_ID)
             .setContentTitle("📍 Location Tracking Active")
             .setContentText("Aplikasi sedang melacak lokasi Anda")
-            .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+            .setSmallIcon(R.drawable.ic_notification)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
             .setAutoCancel(false)
