@@ -2,6 +2,8 @@ export type RootStackParamList = {
   Login: undefined;
   HomeTabs: undefined;
   PrinterSettings: undefined;
+  BluetoothList: undefined;
+  PrintSettings: { device: { name: string; address: string } };
   DaftarNasabah: undefined;
 };
 
