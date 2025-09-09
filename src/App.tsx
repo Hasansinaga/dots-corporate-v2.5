@@ -9,6 +9,7 @@ import { HomeTabs, RootStackParamList } from "./shared/navigation";
 import CustomerListScreen from "./features/customers/screens/CustomerListScreen";
 import { useAuth } from "./stores/useAuth";
 import { colors } from "./theme";
+import { PrinterSettingsScreen } from "./features/settings";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -39,6 +40,7 @@ export default function App() {
           ) : (
             <>
               <Stack.Screen name="HomeTabs" component={HomeTabs} />
+              <Stack.Screen name="PrinterSettings" component={PrinterSettingsScreen} />
               <Stack.Screen
                 name="DaftarNasabah"
                 component={CustomerListScreen}

@@ -1,6 +1,7 @@
 export type RootStackParamList = {
   Login: undefined;
   HomeTabs: undefined;
+  PrinterSettings: undefined;
   DaftarNasabah: undefined;
 };
 
