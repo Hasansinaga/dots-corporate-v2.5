@@ -5,6 +5,7 @@ import { useNavigation } from "@react-navigation/native";
 import { colors, spacing, typography } from "../../../theme";
 import AppBar from "../../../shared/components/AppBar";
 import CustomButton from "../../../shared/components/CustomButton";
+import Loading from "../../../shared/components/Loading";
 import { BluetoothManager } from "@brooons/react-native-bluetooth-escpos-printer";
 import { bluetoothConnectionService, BluetoothDevice } from "../services/bluetoothConnectionService";
 
@@ -46,18 +47,44 @@ function BluetoothListScreen() {
   const requestBluetoothPermissions = async (): Promise<boolean> => {
     if (Platform.OS === 'android') {
       try {
-        const granted = await PermissionsAndroid.requestMultiple([
-          PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
-          PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
-        ]);
+        // Check Android version for compatibility
+        const androidVersion = Platform.Version;
+        console.log('Android version:', androidVersion);
         
-        const scanGranted = granted[PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN] === PermissionsAndroid.RESULTS.GRANTED;
-        const connectGranted = granted[PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT] === PermissionsAndroid.RESULTS.GRANTED;
-        
-        return scanGranted && connectGranted;
+        // For Android 12+ (API 31+), use new Bluetooth permissions
+        if (androidVersion >= 31) {
+          const granted = await PermissionsAndroid.requestMultiple([
+            PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+            PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+          ]);
+          
+          const scanGranted = granted[PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN] === PermissionsAndroid.RESULTS.GRANTED;
+          const connectGranted = granted[PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT] === PermissionsAndroid.RESULTS.GRANTED;
+          
+          return scanGranted && connectGranted;
+        } else {
+          // For older Android versions, use legacy permissions
+          console.log('Using legacy Bluetooth permissions for Android < 12');
+          const granted = await PermissionsAndroid.requestMultiple([
+            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+            PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+          ]);
+          
+          const locationGranted = granted[PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION] === PermissionsAndroid.RESULTS.GRANTED;
+          
+          // For very old Android versions, we'll assume Bluetooth permissions are granted
+          // as they were handled differently in older versions
+          console.log('Legacy Android version - assuming Bluetooth permissions are available');
+          return locationGranted;
+        }
       } catch (err) {
         console.warn('Permission request error:', err);
-        return false;
+        // Fallback: try to continue without permissions for very old devices
+        Alert.alert(
+          "Peringatan", 
+          "Tidak dapat meminta izin Bluetooth. Aplikasi akan mencoba melanjutkan dengan izin yang tersedia. Pastikan Bluetooth sudah diaktifkan di pengaturan perangkat."
+        );
+        return true; // Allow to continue for very old devices
       }
     }
     return true;
@@ -70,7 +97,10 @@ function BluetoothListScreen() {
 
       const hasPermissions = await requestBluetoothPermissions();
       if (!hasPermissions) {
-        Alert.alert("Izin Diperlukan", "Aplikasi memerlukan izin Bluetooth untuk memindai perangkat");
+        Alert.alert(
+          "Izin Diperlukan", 
+          "Aplikasi memerlukan izin Bluetooth untuk memindai perangkat. Silakan periksa pengaturan izin aplikasi dan pastikan Bluetooth sudah diaktifkan di pengaturan perangkat."
+        );
         return;
       }
 
@@ -163,13 +193,15 @@ function BluetoothListScreen() {
         if (error.message.includes('tidak tersedia')) {
           errorMessage = "Library Bluetooth Printer belum ter-link dengan benar. Silakan rebuild aplikasi.";
         } else if (error.message.includes('permission')) {
-          errorMessage = "Aplikasi memerlukan izin Bluetooth. Silakan aktifkan di pengaturan.";
+          errorMessage = "Aplikasi memerlukan izin Bluetooth. Silakan aktifkan di pengaturan aplikasi dan pastikan Bluetooth sudah diaktifkan di pengaturan perangkat.";
         } else if (error.message.includes('NOT_STARTED')) {
-          errorMessage = "Bluetooth belum aktif atau belum diinisialisasi. Silakan aktifkan Bluetooth di pengaturan perangkat.";
+          errorMessage = "Bluetooth belum aktif atau belum diinisialisasi. Silakan aktifkan Bluetooth di pengaturan perangkat dan restart aplikasi.";
         } else if (error.message.includes('is not a function')) {
           errorMessage = "Library Bluetooth Printer belum ter-link dengan benar. Silakan rebuild aplikasi.";
+        } else if (error.message.includes('Samsung') || error.message.includes('samsung')) {
+          errorMessage = "Masalah kompatibilitas dengan perangkat Samsung. Coba restart perangkat dan pastikan Bluetooth sudah diaktifkan di pengaturan.";
         } else {
-          errorMessage = `Error: ${error.message}`;
+          errorMessage = `Error: ${error.message}. Untuk perangkat Samsung lama, pastikan Bluetooth sudah diaktifkan dan coba restart perangkat.`;
         }
       }
       
@@ -185,20 +217,34 @@ function BluetoothListScreen() {
       
       await bluetoothConnectionService.connect(device);
       
-      Alert.alert("Berhasil", `Terhubung ke ${device.name}`);
+      Alert.alert("Berhasil", `Berhasil terhubung ke ${device.name}`);
     } catch (error) {
       console.error("[bluetooth-connect] Error:", error);
       
       let errorMessage = "Gagal terhubung ke printer";
+      let errorTitle = "Koneksi Gagal";
+      
       if (error instanceof Error) {
         if (error.message.includes('tidak tersedia')) {
           errorMessage = "Library Bluetooth Printer belum ter-link dengan benar. Silakan rebuild aplikasi.";
+        } else if (error.message.includes('timeout') || error.message.includes('TIMEOUT')) {
+          errorMessage = "Koneksi timeout. Pastikan printer dalam jangkauan dan dalam mode pairing.";
+          errorTitle = "Timeout Koneksi";
+        } else if (error.message.includes('permission') || error.message.includes('Permission')) {
+          errorMessage = "Izin Bluetooth tidak diberikan. Silakan periksa pengaturan izin aplikasi.";
+          errorTitle = "Izin Diperlukan";
+        } else if (error.message.includes('already connected') || error.message.includes('sudah terhubung')) {
+          errorMessage = "Printer sudah terhubung ke perangkat lain. Coba putuskan koneksi terlebih dahulu.";
+          errorTitle = "Sudah Terhubung";
+        } else if (error.message.includes('Unable to connect') || error.message.includes('unable to connect')) {
+          errorMessage = "Tidak dapat terhubung ke printer. Pastikan printer sudah dipasangkan di pengaturan Bluetooth HP dan dalam mode pairing.";
+          errorTitle = "Koneksi Gagal";
         } else {
-          errorMessage = `Error: ${error.message}`;
+          errorMessage = `Gagal terhubung: ${error.message}. Pastikan printer dalam jangkauan dan sudah dipasangkan di pengaturan Bluetooth.`;
         }
       }
       
-      Alert.alert("Error", errorMessage);
+      Alert.alert(errorTitle, errorMessage);
     } finally {
       setIsConnecting(false);
     }
@@ -312,6 +358,17 @@ function BluetoothListScreen() {
             style={S.refreshButton}
           />
         </View>
+
+        {/* Loading State for Scanning */}
+        {isScanning && (
+          <View style={S.loadingContainer}>
+            <Loading 
+              size="small" 
+              text="Mencari perangkat Bluetooth..." 
+              color={colors.primary}
+            />
+          </View>
+        )}
         
         {/* Device Count */}
         {devices.length > 0 && (
@@ -343,13 +400,24 @@ function BluetoothListScreen() {
           )}
         </View>
 
+        {/* Loading State for Connecting */}
+        {isConnecting && (
+          <View style={S.loadingContainer}>
+            <Loading 
+              size="small" 
+              text="Menghubungkan ke printer..." 
+              color={colors.primary}
+            />
+          </View>
+        )}
+
         {/* Action Buttons */}
         <View style={S.actionButtons}>
           <CustomButton
             title="Pengaturan Print"
             onPress={handlePrintSettings}
             style={S.settingsButton}
-            disabled={!bluetoothConnectionService.hasConnection()}
+            disabled={!bluetoothConnectionService.hasConnection() || isConnecting}
           />
         </View>
       </View>
@@ -477,6 +545,11 @@ const S = StyleSheet.create({
     color: colors.textSecondary,
     fontFamily: typography.primary.regular,
     marginTop: spacing.xs,
+  },
+  loadingContainer: {
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   deviceActions: {
     marginLeft: spacing.sm,
